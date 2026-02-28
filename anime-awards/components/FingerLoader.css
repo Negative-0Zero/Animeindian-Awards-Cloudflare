@@ -1,0 +1,78 @@
+@import url(https://fonts.googleapis.com/css?family=Open+Sans:300);
+
+.loading {
+  position: relative;
+  width: 112px;
+  height: 70px;
+  margin: 0 auto;
+}
+
+.finger {
+  float: left;
+  margin: 0 2px 0 0;
+  width: 20px;
+  height: 100%;
+}
+
+.finger-1 { animation: finger-1-animation 2s infinite ease; }
+.finger-2 { animation: finger-2-animation 2s infinite ease; }
+.finger-3 { animation: finger-3-animation 2s infinite ease; }
+.finger-4 { animation: finger-4-animation 2s infinite ease; }
+
+.finger-item {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px 6px 8px 8px;
+  background: rgba(255,255,255,0.05);
+  box-shadow: 0 2px 2px rgba(0,0,0,0.3);
+}
+
+.finger-item span {
+  position: absolute;
+  right: 3px;
+  bottom: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+}
+
+.finger-item i {
+  position: absolute;
+  left: 3px;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+}
+
+.finger-1 .finger-item { background: linear-gradient(135deg, #ff8a00, #e52e71); }
+.finger-2 .finger-item { background: linear-gradient(135deg, #ff8a00, #e52e71); }
+.finger-3 .finger-item { background: linear-gradient(135deg, #ff8a00, #e52e71); }
+.finger-4 .finger-item { background: linear-gradient(135deg, #ff8a00, #e52e71); }
+
+@keyframes finger-1-animation {
+  0%, 100% { transform: translateY(0); }
+  20% { transform: translateY(-15px); }
+  40% { transform: translateY(0); }
+}
+
+@keyframes finger-2-animation {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-20px); }
+  50% { transform: translateY(0); }
+}
+
+@keyframes finger-3-animation {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-25px); }
+  60% { transform: translateY(0); }
+}
+
+@keyframes finger-4-animation {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+  70% { transform: translateY(0); }
+}
