@@ -14,7 +14,6 @@
     "canvas-confetti": "^1.9.3",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.0",
-    "gsap": "^3.14.2",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "react": "19.2.3",
