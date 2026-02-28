@@ -71,7 +71,7 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
           .eq('user_id', user.id)
           .eq('category', categoryName)
           .eq('is_jury', false)
-        if (votes) {
+        if (votes && votes.length > 0) {
           const voteMap: Record<string, string> = {}
           votes.forEach(v => { voteMap[categoryName] = v.nominee_id })
           setUserVotes(voteMap)
@@ -149,7 +149,7 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
     )
   }
 
-  const hasVoted = userVotes[category]
+  const hasVoted = !!userVotes[category] 
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -270,4 +270,4 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
       </section>
     </main>
   )
-    }
+                    }
