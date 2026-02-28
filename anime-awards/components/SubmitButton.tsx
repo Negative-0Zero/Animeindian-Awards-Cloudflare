@@ -16,6 +16,7 @@ export default function SubmitButton({ onClick, children, className = '', disabl
   const dotsRef = useRef<HTMLDivElement[]>([])
   const count = 110
 
+  // Create dots once on mount
   useEffect(() => {
     if (!bottomRef.current) return
     const fragment = document.createDocumentFragment()
@@ -32,6 +33,7 @@ export default function SubmitButton({ onClick, children, className = '', disabl
     if (disabled || isAnimating) return
     setIsAnimating(true)
 
+    // Burst animation: move each dot randomly
     dotsRef.current.forEach((dot) => {
       const translateX = (Math.random() - 0.5) * 200
       const translateY = (Math.random() - 0.5) * 200
@@ -41,6 +43,7 @@ export default function SubmitButton({ onClick, children, className = '', disabl
     })
 
     setTimeout(() => {
+      // Reset dots
       dotsRef.current.forEach((dot) => {
         dot.style.transform = 'translate(0, 0) rotate(0deg)'
         dot.style.transition = ''
