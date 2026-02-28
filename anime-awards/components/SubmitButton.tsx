@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, ReactNode } from 'react'
-import anime from 'animejs/lib/anime.es.js'
 import './SubmitButton.css'
 
 interface SubmitButtonProps {
@@ -15,8 +14,19 @@ export default function SubmitButton({ onClick, children, className = '', disabl
   const bottomRef = useRef<HTMLDivElement>(null)
   const dotsRef = useRef<HTMLDivElement[]>([])
   const buttonRef = useRef<HTMLDivElement>(null)
+  const animeRef = useRef<any>(null)
   const count = 110
   const dotSize = 4
+
+  // Load anime dynamically on client side
+  useEffect(() => {
+    import('animejs').then(module => {
+      // animejs exports the function as default, but in some environments it's in module.default
+      animeRef.current = module.default || module;
+    }).catch(err => {
+      console.error('Failed to load animejs', err);
+    });
+  }, [])
 
   useEffect(() => {
     if (!bottomRef.current) return
@@ -44,7 +54,9 @@ export default function SubmitButton({ onClick, children, className = '', disabl
   }
 
   const handleClick = () => {
-    if (disabled) return
+    if (disabled || !animeRef.current) return
+
+    const anime = animeRef.current;
 
     anime({
       targets: dotsRef.current,
@@ -89,4 +101,4 @@ export default function SubmitButton({ onClick, children, className = '', disabl
       <div className="overlay"></div>
     </div>
   )
-                                  }
+    }
