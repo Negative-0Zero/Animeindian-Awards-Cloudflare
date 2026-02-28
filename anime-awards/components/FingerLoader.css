@@ -2,7 +2,7 @@
 
 .loading {
   position: relative;
-  width: 140px;  /* increased to fit 5 fingers */
+  width: 150px;        /* slightly wider because thumb.*/
   height: 70px;
   margin: 0 auto;
 }
@@ -12,14 +12,27 @@
   margin: 0 2px 0 0;
   width: 20px;
   height: 100%;
+  position: relative;
 }
 
 .finger-1 { animation: finger-1-animation 2s infinite ease; }
 .finger-2 { animation: finger-2-animation 2s infinite ease; }
 .finger-3 { animation: finger-3-animation 2s infinite ease; }
 .finger-4 { animation: finger-4-animation 2s infinite ease; }
-.finger-5 { animation: finger-5-animation 2s infinite ease; }
-.thumb { width: 24px; margin-right: 0; } /* thumb slightly wider */
+.finger-5 {
+  animation: finger-5-animation 2s infinite ease;
+  width: 24px;
+  margin-right: 0;
+}
+
+/* Thumb – lol*/
+.finger-5 .finger-item {
+  height: 70%;          /* 70% of container height */
+  position: absolute;
+  bottom: 0;            /* align to bottom */
+  left: 0;
+  right: 0;
+}
 
 .finger-item {
   position: relative;
@@ -79,6 +92,6 @@
 }
 @keyframes finger-5-animation {
   0%, 100% { transform: translateY(0); }
-  45% { transform: translateY(-12px); }
+  45% { transform: translateY(-8px); }  /* smaller movement for thumb */
   65% { transform: translateY(0); }
-}
+       }
