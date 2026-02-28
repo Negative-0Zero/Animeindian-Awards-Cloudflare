@@ -46,7 +46,8 @@ export default function SubmitButton({ onClick, children, className = '', disabl
   const handleClick = () => {
     if (disabled) return
 
-    anime({
+    // Use anime.default for the main function, and anime.stagger / anime.random for utilities
+    anime.default({
       targets: dotsRef.current,
       opacity: [{ value: 0, duration: 600, delay: anime.stagger(10) }],
       translateX: {
