@@ -9,11 +9,11 @@ interface GsapToggleProps {
 }
 
 export default function GsapToggle({ onToggle, initialState = false }: GsapToggleProps) {
-  const toggleRef = useRef<HTMLDivElement>(null)
+  const toggleRef = useRef<SVGGElement>(null)          // ✅ correct type
   const circleRef = useRef<SVGCircleElement>(null)
   const shortStrokeRef = useRef<SVGLineElement>(null)
   const longStrokeRef = useRef<SVGLineElement>(null)
-  const tl = useRef<gsap.core.Timeline>(null) // ✅ fixed: pass null
+  const tl = useRef<gsap.core.Timeline>(null)
 
   useEffect(() => {
     // Initialize the strokes in the "off" position
@@ -72,4 +72,4 @@ export default function GsapToggle({ onToggle, initialState = false }: GsapToggl
       </svg>
     </div>
   )
-      }
+        }
