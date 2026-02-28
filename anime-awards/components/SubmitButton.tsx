@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, ReactNode } from 'react'
-import * as anime from 'animejs'
+import anime from 'animejs'
 import './SubmitButton.css'
 
 interface SubmitButtonProps {
@@ -46,8 +46,7 @@ export default function SubmitButton({ onClick, children, className = '', disabl
   const handleClick = () => {
     if (disabled) return
 
-    // Use anime.default for the main function, and anime.stagger / anime.random for utilities
-    anime.default({
+    anime({
       targets: dotsRef.current,
       opacity: [{ value: 0, duration: 600, delay: anime.stagger(10) }],
       translateX: {
@@ -90,4 +89,4 @@ export default function SubmitButton({ onClick, children, className = '', disabl
       <div className="overlay"></div>
     </div>
   )
-}
+        }
