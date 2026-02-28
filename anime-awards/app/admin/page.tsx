@@ -5,17 +5,16 @@ import { supabase } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Login from '@/components/Login'
 import {
-  // Existing icons
   Trophy, Calendar, Star, Flame, Heart, Zap,
   Clapperboard, Mic, Tv, ArrowRight,
   Sword, Crown, Award, Medal, Sparkles, Camera, Film,
   Music, Radio, Gamepad, Brain, Cloud, Sun, Moon,
   Smile, ThumbsUp, Flag, Gift, Globe, Leaf, Diamond,
-  // Additional UI icons
   ClipboardList, Tags, FileText, Settings, BarChart3,
   Pencil, Plus, Trash2, ArrowLeft, ArrowUp, ArrowDown,
   Check, Search, RefreshCw, Save, Lock, Ban, TrendingUp,
-  ChevronsUpDown, ChevronsDownUp, Tag,
+  ChevronsUpDown, ChevronsDownUp,
+  Tag,
 } from "lucide-react"
 
 export default function AdminPage() {
@@ -399,7 +398,6 @@ export default function AdminPage() {
   async function addCategory(e: React.FormEvent) {
     e.preventDefault()
     if (!categoryForm.name || !categoryForm.slug) return alert('Name and slug are required')
-    // Ensure slug is never empty
     const slug = categoryForm.slug || categoryForm.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '') || 'uncategorized'
     const maxOrder = categoryList.length > 0 ? Math.max(...categoryList.map(c => c.display_order || 0)) + 1 : 1
     const { error } = await supabase.from('categories').insert([{ ...categoryForm, slug, display_order: maxOrder }])
@@ -739,7 +737,7 @@ export default function AdminPage() {
 
                 {/* Preview Winners */}
                 <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                  <Trophy size={20} /> Preview Current Top 3
+                  <Trophy size={20} /> Current Top 3 by Category (Preview)
                 </h3>
                 <div className="space-y-4">
                   {dashboardData.categoryStats.map(stat => (
@@ -871,7 +869,7 @@ export default function AdminPage() {
             <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <ClipboardList /> Current Nominees 
+                  <ClipboardList /> Current Nominees (grouped by category)
                 </h2>
                 <div className="flex gap-2">
                   <button
@@ -1017,7 +1015,7 @@ export default function AdminPage() {
           </>
         )}
 
-        {/* Categories Tab (FIXED LAYOUT) */}
+        {/* Categories Tab – Cards with buttons at bottom */}
         {activeTab === 'categories' && (
           <>
             <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 mb-8">
@@ -1126,18 +1124,18 @@ export default function AdminPage() {
               {categoryList.length === 0 ? (
                 <p className="text-gray-400">No categories yet. Add one above!</p>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {categoryList.map((cat) => (
                     <div
                       key={cat.id}
-                      className="flex items-start justify-between bg-slate-800/50 p-4 rounded-lg gap-4"
+                      className="bg-slate-800/50 border border-white/10 rounded-xl p-4 flex flex-col h-full"
                     >
-                      {/* Left side: category info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-lg">{cat.name}</p>
-                        <div className="text-sm text-gray-400 space-y-1">
+                      {/* Card Content */}
+                      <div className="flex-1">
+                        <p className="font-medium text-lg mb-2">{cat.name}</p>
+                        <div className="text-sm text-gray-400 space-y-1 mb-3">
                           <p className="flex items-center gap-1">
-                            <Tag size={14} className="inline shrink-0" />
+                            <Tag size={14} className="shrink-0" />
                             <span className="truncate">
                               Slug: {cat.slug || <span className="text-red-400">missing</span>}
                             </span>
@@ -1151,36 +1149,40 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Right side: buttons (always together) */}
-                      <div className="flex gap-2 items-center shrink-0">
-                        <button
-                          onClick={() => moveCategory(cat.id, 'up')}
-                          disabled={reordering}
-                          className="p-2 text-gray-400 hover:text-white disabled:opacity-30 rounded border border-white/10 hover:border-white/30 transition"
-                          title="Move up"
-                        >
-                          <ArrowUp size={14} />
-                        </button>
-                        <button
-                          onClick={() => moveCategory(cat.id, 'down')}
-                          disabled={reordering}
-                          className="p-2 text-gray-400 hover:text-white disabled:opacity-30 rounded border border-white/10 hover:border-white/30 transition"
-                          title="Move down"
-                        >
-                          <ArrowDown size={14} />
-                        </button>
-                        <button
-                          onClick={() => editCategory(cat)}
-                          className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm px-3 py-1.5 rounded border border-blue-500/30 hover:border-blue-500/50 transition"
-                        >
-                          <Pencil size={12} /> Edit
-                        </button>
-                        <button
-                          onClick={() => deleteCategory(cat.id)}
-                          className="flex items-center gap-1 text-red-400 hover:text-red-300 text-sm px-3 py-1.5 rounded border border-red-500/30 hover:border-red-500/50 transition"
-                        >
-                          <Trash2 size={12} /> Delete
-                        </button>
+                      {/* Buttons Row – always at bottom */}
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => moveCategory(cat.id, 'up')}
+                            disabled={reordering}
+                            className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 rounded border border-white/10 hover:border-white/30 transition"
+                            title="Move up"
+                          >
+                            <ArrowUp size={14} />
+                          </button>
+                          <button
+                            onClick={() => moveCategory(cat.id, 'down')}
+                            disabled={reordering}
+                            className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 rounded border border-white/10 hover:border-white/30 transition"
+                            title="Move down"
+                          >
+                            <ArrowDown size={14} />
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => editCategory(cat)}
+                            className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs px-2 py-1.5 rounded border border-blue-500/30 hover:border-blue-500/50 transition"
+                          >
+                            <Pencil size={12} /> Edit
+                          </button>
+                          <button
+                            onClick={() => deleteCategory(cat.id)}
+                            className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs px-2 py-1.5 rounded border border-red-500/30 hover:border-red-500/50 transition"
+                          >
+                            <Trash2 size={12} /> Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1225,6 +1227,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-        }
-
-
+    }
