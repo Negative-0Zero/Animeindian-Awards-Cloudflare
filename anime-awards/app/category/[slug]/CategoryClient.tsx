@@ -63,6 +63,7 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
       const nomineesData = await fetchFromAPI(`/nominees?select=*&category=eq.${encodeURIComponent(categoryName)}&order=created_at.asc`)
       setNominees(nomineesData || [])
 
+      // Load user's existing votes for this category
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: votes } = await supabase
@@ -149,7 +150,7 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
     )
   }
 
-  const hasVoted = !!userVotes[category] 
+  const hasVoted = !!userVotes[category]
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -270,4 +271,4 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
       </section>
     </main>
   )
-                    }
+          }
