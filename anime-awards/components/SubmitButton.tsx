@@ -21,8 +21,8 @@ export default function SubmitButton({ onClick, children, className = '', disabl
   // Load anime dynamically on client side
   useEffect(() => {
     import('animejs').then(module => {
-      // animejs exports the function as default, but in some environments it's in module.default
-      animeRef.current = module.default || module;
+      // In CommonJS, the module.exports is the function itself
+      animeRef.current = module;
     }).catch(err => {
       console.error('Failed to load animejs', err);
     });
@@ -101,4 +101,4 @@ export default function SubmitButton({ onClick, children, className = '', disabl
       <div className="overlay"></div>
     </div>
   )
-    }
+        }
