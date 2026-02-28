@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { supabase } from '@/utils/supabase/client'
 import Login from '@/components/Login'
 import VoteButton from '@/components/VoteButton'
-import { ArrowLeft, ArrowRight, ThumbsUp, Home } from 'lucide-react' // 👈 added Home icon
+import FingerLoader from '@/components/FingerLoader'
+import { ArrowLeft, ArrowRight, ThumbsUp } from 'lucide-react'
 import { fetchFromAPI } from '@/utils/api'
 
 export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
@@ -96,17 +97,15 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 text-white p-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-gray-400">Loading nominees...</p>
-        </div>
+      <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <FingerLoader />
       </main>
     )
   }
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between"> {/* 👈 flex container */}
+      <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
@@ -216,4 +215,4 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
       </section>
     </main>
   )
-              }
+  }
