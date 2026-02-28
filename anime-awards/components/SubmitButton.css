@@ -7,28 +7,28 @@
     0 4px 4px rgba(0, 0, 0, 0.11), 0 6px 8px rgba(0, 0, 0, 0.11),
     0 8px 16px rgba(0, 0, 0, 0.11);
   cursor: pointer;
-  display: inline-flex; /* changed from flex to inline-flex */
+  display: inline-flex;
   font-family: "Questrial", sans-serif;
   font-weight: 800;
   justify-content: center;
   position: relative;
   height: 80px;
-  min-width: 200px; /* allow wider if content is long */
+  min-width: 200px;
   background: #2b2b2b;
-  padding: 0 24px; /* horizontal padding */
+  padding: 0 24px;
   box-sizing: border-box;
 }
 
-/* rest of the CSS unchanged */
 .bottom {
   position: absolute;
   inset: 0;
+  overflow: hidden;  /* ensures dots stay inside while animating */
 }
 
 .dot {
   width: 4px;
   height: 4px;
-  background: linear-gradient(135deg, #ff8a00, #e52e71);
+  background: linear-gradient(135deg, #a855f7, #ec4899); /* purple to pink */
   border-radius: 50%;
   position: absolute;
   top: 50%;
@@ -66,7 +66,7 @@
   transform: translateY(-1px);
   display: flex;
   align-items: center;
-  gap: 8px; /* space between icon and text */
+  gap: 8px;
 }
 
 .text-dark {
@@ -96,4 +96,4 @@
 
 .container:hover .cut {
   clip-path: inset(0 0 100% 0);
-                                          }
+}
