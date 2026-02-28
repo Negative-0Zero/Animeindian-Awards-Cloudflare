@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState, ReactNode } from 'react'
+import { useEffect, useRef, ReactNode } from 'react'
+import anime from 'animejs'
 import './SubmitButton.css'
 
 interface SubmitButtonProps {
@@ -11,12 +12,13 @@ interface SubmitButtonProps {
 }
 
 export default function SubmitButton({ onClick, children, className = '', disabled = false }: SubmitButtonProps) {
-  const [isAnimating, setIsAnimating] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const dotsRef = useRef<HTMLDivElement[]>([])
+  const buttonRef = useRef<HTMLDivElement>(null)
   const count = 110
+  const dotSize = 4 // px – small dots
 
-  // Create dots once on mount
+  // Create dots on mount
   useEffect(() => {
     if (!bottomRef.current) return
     const fragment = document.createDocumentFragment()
@@ -27,36 +29,58 @@ export default function SubmitButton({ onClick, children, className = '', disabl
     }
     bottomRef.current.appendChild(fragment)
     dotsRef.current = Array.from(bottomRef.current.children) as HTMLDivElement[]
+    resetDots()
   }, [])
 
-  const animate = () => {
-    if (disabled || isAnimating) return
-    setIsAnimating(true)
-
-    // Burst animation: move each dot randomly
-    dotsRef.current.forEach((dot) => {
-      const translateX = (Math.random() - 0.5) * 200
-      const translateY = (Math.random() - 0.5) * 200
-      const rotate = Math.random() * 360
-      dot.style.transform = `translate(${translateX}px, ${translateY}px) rotate(${rotate}deg)`
-      dot.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+  const resetDots = () => {
+    if (!dotsRef.current.length) return
+    dotsRef.current.forEach((dot, i) => {
+      const x = (i / count) * (190 + dotSize) - dotSize / 2
+      const y = Math.random() * 52 - dotSize / 2
+      dot.style.left = `${x}px`
+      dot.style.top = `${y}px`
+      dot.style.opacity = '1'
+      dot.style.transform = 'scale(1)'
     })
+  }
 
-    setTimeout(() => {
-      // Reset dots
-      dotsRef.current.forEach((dot) => {
-        dot.style.transform = 'translate(0, 0) rotate(0deg)'
-        dot.style.transition = ''
-      })
-      setIsAnimating(false)
-      onClick?.()
-    }, 800)
+  const handleClick = () => {
+    if (disabled) return
+
+    // Animate dots exactly like the CodePen
+    anime({
+      targets: dotsRef.current,
+      opacity: [{ value: 0, duration: 600, delay: anime.stagger(10) }],
+      translateX: {
+        value: () => anime.random(-30, 30),
+        duration: 400,
+        delay: anime.stagger(10)
+      },
+      translateY: {
+        value: () => anime.random(-30, 30),
+        duration: 400,
+        delay: anime.stagger(10)
+      },
+      scale: {
+        value: 0,
+        duration: 400,
+        delay: anime.stagger(10)
+      },
+      easing: 'linear',
+      complete: () => {
+        // Call the onClick after animation
+        onClick?.()
+        // Reset dots after a tiny delay (to ensure they reappear)
+        setTimeout(resetDots, 50)
+      }
+    })
   }
 
   return (
     <div
+      ref={buttonRef}
       className={`container ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-      onClick={animate}
+      onClick={handleClick}
     >
       <div className="bottom" ref={bottomRef}></div>
       <div className="cover cut"></div>
@@ -69,4 +93,4 @@ export default function SubmitButton({ onClick, children, className = '', disabl
       <div className="overlay"></div>
     </div>
   )
-}
+        }
