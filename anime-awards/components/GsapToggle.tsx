@@ -2,10 +2,6 @@
 
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
-// I might add DrawSVG plugin. Remember: uncomment the next line and ensure it's installed
-// import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin'
-
-// gsap.registerPlugin(DrawSVGPlugin)
 
 interface GsapToggleProps {
   onToggle?: (state: boolean) => void
@@ -17,7 +13,7 @@ export default function GsapToggle({ onToggle, initialState = false }: GsapToggl
   const circleRef = useRef<SVGCircleElement>(null)
   const shortStrokeRef = useRef<SVGLineElement>(null)
   const longStrokeRef = useRef<SVGLineElement>(null)
-  const tl = useRef<gsap.core.Timeline>()
+  const tl = useRef<gsap.core.Timeline>(null) // ✅ fixed: pass null
 
   useEffect(() => {
     // Initialize the strokes in the "off" position
@@ -76,4 +72,4 @@ export default function GsapToggle({ onToggle, initialState = false }: GsapToggl
       </svg>
     </div>
   )
-        }
+      }
