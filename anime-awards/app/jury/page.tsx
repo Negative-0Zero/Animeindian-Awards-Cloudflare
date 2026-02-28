@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/utils/supabase/client'
 import Login from '@/components/Login'
-import { 
-  Trophy, Check, Lock, Ban, ChevronsUpDown, ChevronsDownUp, ThumbsUp 
-} from 'lucide-react'
+import FingerLoader from '@/components/FingerLoader'
+import SubmitButton from '@/components/SubmitButton'
+import { Trophy, Check, Lock, Ban, ChevronsUpDown, ChevronsDownUp, ThumbsUp } from 'lucide-react'
 
 export default function JuryPage() {
   const router = useRouter()
@@ -134,8 +134,8 @@ export default function JuryPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 text-white p-8">
-        <div className="max-w-4xl mx-auto">Loading jury panel...</div>
+      <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <FingerLoader />
       </main>
     )
   }
@@ -258,25 +258,22 @@ export default function JuryPage() {
                                 {nominee.anime_name && (
                                   <p className="text-sm text-gray-400">{nominee.anime_name}</p>
                                 )}
-                                <button
-                                  onClick={() => handleVote(nominee.id, cat.name)}
-                                  disabled={alreadyVoted}
-                                  className={`mt-4 w-full px-4 py-2 rounded-full font-bold transition flex items-center justify-center gap-1 ${
-                                    alreadyVoted
-                                      ? 'bg-gray-600 cursor-not-allowed'
-                                      : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
-                                  }`}
-                                >
-                                  {alreadyVoted ? (
-                                    <>
-                                      <Check size={16} /> Vote Cast
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ThumbsUp size={16} /> Vote as Jury
-                                    </>
-                                  )}
-                                </button>
+                                <div className="mt-4">
+                                  <SubmitButton
+                                    onClick={() => handleVote(nominee.id, cat.name)}
+                                    disabled={alreadyVoted}
+                                  >
+                                    {alreadyVoted ? (
+                                      <>
+                                        <Check size={16} /> Vote Cast
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ThumbsUp size={16} /> Vote as Jury
+                                      </>
+                                    )}
+                                  </SubmitButton>
+                                </div>
                               </div>
                             )
                           })}
@@ -292,4 +289,4 @@ export default function JuryPage() {
       </div>
     </main>
   )
-                        }
+}
