@@ -7,7 +7,7 @@ import { supabase } from '@/utils/supabase/client'
 import Login from '@/components/Login'
 import VoteButton from '@/components/VoteButton'
 import FingerLoader from '@/components/FingerLoader'
-import { ArrowLeft, ArrowRight, ThumbsUp } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Home, ThumbsUp } from 'lucide-react'
 import { fetchFromAPI } from '@/utils/api'
 
 export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
