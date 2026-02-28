@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/utils/supabase/client'
 import Login from '@/components/Login'
 import Footer from '@/components/Footer'
+import FingerLoader from '@/components/FingerLoader'
 import {
   Trophy, Calendar, Star, Flame, Heart, Zap,
   Clapperboard, Mic, Tv, ArrowRight,
@@ -145,7 +146,6 @@ export default function Home() {
               <p className="text-gray-300">
                 <span className="font-semibold text-white">One person, one vote.</span> We use secure login to ensure fairness – no duplicate votes.
               </p>
-              {/* Removed the email reassurance paragraph */}
             </div>
             <div className="md:w-1/2 w-full">
               <Login compact={false} showReassurance={true} />
@@ -162,7 +162,11 @@ export default function Home() {
             <span>The Categories – {SEASON.name}</span>
           </h2>
 
-          {loading && <p className="text-center text-gray-400">Loading categories...</p>}
+          {loading && (
+            <div className="flex justify-center py-12">
+              <FingerLoader />
+            </div>
+          )}
           {error && <p className="text-center text-red-400">{error}</p>}
           {!loading && !error && categories.length === 0 && (
             <p className="text-center text-gray-400">No categories found. Please add some in the admin panel.</p>
@@ -204,4 +208,4 @@ export default function Home() {
       <Footer />
     </main>
   )
-          }
+  }
