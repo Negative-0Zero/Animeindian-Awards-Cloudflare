@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, ReactNode } from 'react'
+import { useEffect, useRef, useState, ReactNode } from 'react'
 import './SubmitButton.css'
 
 interface SubmitButtonProps {
@@ -22,7 +22,6 @@ export default function SubmitButton({ onClick, children, className = '', disabl
   // Load anime dynamically on client side
   useEffect(() => {
     import('animejs').then(module => {
-      // In CommonJS, the module.exports is the function itself
       animeRef.current = module;
       setAnimeLoaded(true);
     }).catch(err => {
@@ -30,7 +29,6 @@ export default function SubmitButton({ onClick, children, className = '', disabl
     });
   }, [])
 
-  // Function to position dots based on current button width
   const positionDots = () => {
     if (!dotsRef.current.length || !buttonRef.current) return
     const buttonWidth = buttonRef.current.offsetWidth;
@@ -44,7 +42,6 @@ export default function SubmitButton({ onClick, children, className = '', disabl
     });
   };
 
-  // Create dots and position them initially
   useEffect(() => {
     if (!bottomRef.current) return
     const fragment = document.createDocumentFragment()
@@ -55,12 +52,10 @@ export default function SubmitButton({ onClick, children, className = '', disabl
     }
     bottomRef.current.appendChild(fragment)
     dotsRef.current = Array.from(bottomRef.current.children) as HTMLDivElement[]
-    // Delay positioning to ensure button width is available
     requestAnimationFrame(() => {
       positionDots();
     });
 
-    // Reposition on resize
     const handleResize = () => positionDots();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -68,7 +63,7 @@ export default function SubmitButton({ onClick, children, className = '', disabl
 
   const resetDots = () => {
     if (!dotsRef.current.length) return
-    positionDots(); // reset to original positions
+    positionDots();
   }
 
   const handleClick = () => {
@@ -101,7 +96,6 @@ export default function SubmitButton({ onClick, children, className = '', disabl
         }
       });
     } else {
-      // Fallback if anime not loaded – just call onClick
       onClick?.();
     }
   }
@@ -124,4 +118,4 @@ export default function SubmitButton({ onClick, children, className = '', disabl
       <div className="overlay"></div>
     </div>
   )
-  }
+          }
