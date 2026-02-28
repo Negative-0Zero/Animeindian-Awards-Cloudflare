@@ -1,22 +1,21 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import './SubmitButton.css' // We'll create this file next
+import { useEffect, useRef, useState, ReactNode } from 'react'
+import './SubmitButton.css'
 
 interface SubmitButtonProps {
-  onSubmit?: () => void
-  text?: string
+  onClick?: () => void
+  children: ReactNode
   className?: string
+  disabled?: boolean
 }
 
-export default function SubmitButton({ onSubmit, text = 'Submit', className = '' }: SubmitButtonProps) {
+export default function SubmitButton({ onClick, children, className = '', disabled = false }: SubmitButtonProps) {
   const [isAnimating, setIsAnimating] = useState(false)
-  const buttonRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const dotsRef = useRef<HTMLDivElement[]>([])
   const count = 110
 
-  // Create dots on mount
   useEffect(() => {
     if (!bottomRef.current) return
     const fragment = document.createDocumentFragment()
@@ -30,10 +29,10 @@ export default function SubmitButton({ onSubmit, text = 'Submit', className = ''
   }, [])
 
   const animate = () => {
-    if (isAnimating) return
+    if (disabled || isAnimating) return
     setIsAnimating(true)
 
-    dotsRef.current.forEach((dot, i) => {
+    dotsRef.current.forEach((dot) => {
       const translateX = (Math.random() - 0.5) * 200
       const translateY = (Math.random() - 0.5) * 200
       const rotate = Math.random() * 360
@@ -47,23 +46,22 @@ export default function SubmitButton({ onSubmit, text = 'Submit', className = ''
         dot.style.transition = ''
       })
       setIsAnimating(false)
-      onSubmit?.()
+      onClick?.()
     }, 800)
   }
 
   return (
     <div
-      ref={buttonRef}
-      className={`container ${className}`}
+      className={`container ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       onClick={animate}
     >
       <div className="bottom" ref={bottomRef}></div>
       <div className="cover cut"></div>
       <div className="text-container">
-        <div className="text text-dark">{text}</div>
+        <div className="text text-dark">{children}</div>
       </div>
       <div className="text-container cut">
-        <div className="text">{text}</div>
+        <div className="text">{children}</div>
       </div>
       <div className="overlay"></div>
     </div>
