@@ -15,6 +15,7 @@ export default function SubmitButton({ onClick, children, className = '', disabl
   const dotsRef = useRef<HTMLDivElement[]>([])
   const buttonRef = useRef<HTMLDivElement>(null)
   const animeRef = useRef<any>(null)
+  const [animeLoaded, setAnimeLoaded] = useState(false)
   const count = 110
   const dotSize = 4
 
@@ -23,11 +24,27 @@ export default function SubmitButton({ onClick, children, className = '', disabl
     import('animejs').then(module => {
       // In CommonJS, the module.exports is the function itself
       animeRef.current = module;
+      setAnimeLoaded(true);
     }).catch(err => {
       console.error('Failed to load animejs', err);
     });
   }, [])
 
+  // Function to position dots based on current button width
+  const positionDots = () => {
+    if (!dotsRef.current.length || !buttonRef.current) return
+    const buttonWidth = buttonRef.current.offsetWidth;
+    dotsRef.current.forEach((dot, i) => {
+      const x = (i / count) * (buttonWidth + dotSize) - dotSize / 2;
+      const y = Math.random() * 52 - dotSize / 2;
+      dot.style.left = `${x}px`;
+      dot.style.top = `${y}px`;
+      dot.style.opacity = '1';
+      dot.style.transform = 'scale(1)';
+    });
+  };
+
+  // Create dots and position them initially
   useEffect(() => {
     if (!bottomRef.current) return
     const fragment = document.createDocumentFragment()
@@ -38,50 +55,55 @@ export default function SubmitButton({ onClick, children, className = '', disabl
     }
     bottomRef.current.appendChild(fragment)
     dotsRef.current = Array.from(bottomRef.current.children) as HTMLDivElement[]
-    resetDots()
+    // Delay positioning to ensure button width is available
+    requestAnimationFrame(() => {
+      positionDots();
+    });
+
+    // Reposition on resize
+    const handleResize = () => positionDots();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [])
 
   const resetDots = () => {
     if (!dotsRef.current.length) return
-    dotsRef.current.forEach((dot, i) => {
-      const x = (i / count) * (190 + dotSize) - dotSize / 2
-      const y = Math.random() * 52 - dotSize / 2
-      dot.style.left = `${x}px`
-      dot.style.top = `${y}px`
-      dot.style.opacity = '1'
-      dot.style.transform = 'scale(1)'
-    })
+    positionDots(); // reset to original positions
   }
 
   const handleClick = () => {
-    if (disabled || !animeRef.current) return
+    if (disabled) return
 
-    const anime = animeRef.current;
-
-    anime({
-      targets: dotsRef.current,
-      opacity: [{ value: 0, duration: 600, delay: anime.stagger(10) }],
-      translateX: {
-        value: () => anime.random(-30, 30),
-        duration: 400,
-        delay: anime.stagger(10)
-      },
-      translateY: {
-        value: () => anime.random(-30, 30),
-        duration: 400,
-        delay: anime.stagger(10)
-      },
-      scale: {
-        value: 0,
-        duration: 400,
-        delay: anime.stagger(10)
-      },
-      easing: 'linear',
-      complete: () => {
-        onClick?.()
-        setTimeout(resetDots, 50)
-      }
-    })
+    if (animeLoaded && animeRef.current) {
+      const anime = animeRef.current;
+      anime({
+        targets: dotsRef.current,
+        opacity: [{ value: 0, duration: 600, delay: anime.stagger(10) }],
+        translateX: {
+          value: () => anime.random(-30, 30),
+          duration: 400,
+          delay: anime.stagger(10)
+        },
+        translateY: {
+          value: () => anime.random(-30, 30),
+          duration: 400,
+          delay: anime.stagger(10)
+        },
+        scale: {
+          value: 0,
+          duration: 400,
+          delay: anime.stagger(10)
+        },
+        easing: 'linear',
+        complete: () => {
+          onClick?.()
+          setTimeout(resetDots, 50)
+        }
+      });
+    } else {
+      // Fallback if anime not loaded – just call onClick
+      onClick?.();
+    }
   }
 
   return (
@@ -89,6 +111,7 @@ export default function SubmitButton({ onClick, children, className = '', disabl
       ref={buttonRef}
       className={`container ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       onClick={handleClick}
+      style={{ width: '100%' }}
     >
       <div className="bottom" ref={bottomRef}></div>
       <div className="cover cut"></div>
@@ -101,4 +124,4 @@ export default function SubmitButton({ onClick, children, className = '', disabl
       <div className="overlay"></div>
     </div>
   )
-        }
+  }
