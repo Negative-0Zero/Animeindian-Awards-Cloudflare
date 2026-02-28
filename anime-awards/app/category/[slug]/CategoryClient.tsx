@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/utils/supabase/client'
 import Login from '@/components/Login'
-import VoteButton from '@/components/VoteButton'
 import FingerLoader from '@/components/FingerLoader'
-import { ArrowLeft, ArrowRight, Home, ThumbsUp } from 'lucide-react'
+import SubmitButton from '@/components/SubmitButton'
+import { ArrowLeft, ArrowRight, ThumbsUp, Home } from 'lucide-react'
 import { fetchFromAPI } from '@/utils/api'
 
 export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
@@ -19,6 +19,7 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
   const [error, setError] = useState<string | null>(null)
   const [nextCategory, setNextCategory] = useState<{ slug: string; name: string } | null>(null)
   const [prevCategory, setPrevCategory] = useState<{ slug: string; name: string } | null>(null)
+  const [userVotes, setUserVotes] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (propSlug) {
@@ -61,11 +62,56 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
 
       const nomineesData = await fetchFromAPI(`/nominees?select=*&category=eq.${encodeURIComponent(categoryName)}&order=created_at.asc`)
       setNominees(nomineesData || [])
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: votes } = await supabase
+          .from('votes')
+          .select('nominee_id')
+          .eq('user_id', user.id)
+          .eq('category', categoryName)
+          .eq('is_jury', false)
+        if (votes) {
+          const voteMap: Record<string, string> = {}
+          votes.forEach(v => { voteMap[categoryName] = v.nominee_id })
+          setUserVotes(voteMap)
+        }
+      }
     } catch (err: any) {
       console.error('Error in CategoryClient:', err)
       setError(err.message || 'Failed to load nominees.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleVote(nomineeId: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      alert('Please log in to vote.')
+      return
+    }
+    if (userVotes[category]) {
+      alert('You have already voted in this category.')
+      return
+    }
+
+    const { error } = await supabase.from('votes').insert([{
+      user_id: user.id,
+      category,
+      nominee_id: nomineeId,
+      is_jury: false
+    }])
+
+    if (error) {
+      if (error.code === '23505') {
+        alert('You already voted in this category.')
+      } else {
+        alert('Error: ' + error.message)
+      }
+    } else {
+      setUserVotes(prev => ({ ...prev, [category]: nomineeId }))
+      alert('Vote recorded!')
     }
   }
 
@@ -102,6 +148,8 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
       </main>
     )
   }
+
+  const hasVoted = userVotes[category]
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -142,32 +190,39 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {nominees.map((nominee) => (
-              <div
-                key={nominee.id}
-                className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 hover:border-white/30 transition-all"
-              >
-                {nominee.image_url && (
-                  <img
-                    src={nominee.image_url}
-                    alt={nominee.title}
-                    className="w-full h-48 object-cover rounded-xl mb-4"
-                  />
-                )}
-                <h2 className="text-2xl font-bold mb-2">{nominee.title}</h2>
-                {nominee.anime_name && (
-                  <p className="text-gray-400 text-sm mb-4">{nominee.anime_name}</p>
-                )}
-                <div className="mt-4">
-                  <VoteButton
-                    nomineeId={nominee.id}
-                    category={category}
-                    onVoteSuccess={fetchCategoryAndNeighbors}
-                    className="w-full"
-                  />
+            {nominees.map((nominee) => {
+              const isVoted = userVotes[category] === nominee.id
+              return (
+                <div
+                  key={nominee.id}
+                  className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 hover:border-white/30 transition-all"
+                >
+                  {nominee.image_url && (
+                    <img
+                      src={nominee.image_url}
+                      alt={nominee.title}
+                      className="w-full h-48 object-cover rounded-xl mb-4"
+                    />
+                  )}
+                  <h2 className="text-2xl font-bold mb-2">{nominee.title}</h2>
+                  {nominee.anime_name && (
+                    <p className="text-gray-400 text-sm mb-4">{nominee.anime_name}</p>
+                  )}
+                  <div className="mt-4">
+                    <SubmitButton
+                      onClick={() => handleVote(nominee.id)}
+                      disabled={hasVoted}
+                    >
+                      {hasVoted ? (
+                        <>✓ Voted</>
+                      ) : (
+                        <>Vote</>
+                      )}
+                    </SubmitButton>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -215,4 +270,4 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
       </section>
     </main>
   )
-  }
+    }
