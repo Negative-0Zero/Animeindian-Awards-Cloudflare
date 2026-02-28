@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Login from '@/components/Login'
+import GsapToggle from '@/components/GsapToggle'
+import FingerLoader from '@/components/FingerLoader'
 import {
   Trophy, Calendar, Star, Flame, Heart, Zap,
   Clapperboard, Mic, Tv, ArrowRight,
@@ -651,9 +653,11 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {dashboardLoading && <p className="text-gray-400">Loading dashboard data...</p>}
-
-            {dashboardData && (
+            {dashboardLoading ? (
+              <div className="flex justify-center py-12">
+                <FingerLoader />
+              </div>
+            ) : dashboardData ? (
               <>
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -671,7 +675,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Settings Toggle */}
+                {/* Settings Toggle with GSAP animation */}
                 <div className="bg-slate-800/50 rounded-lg p-4 border border-white/5 mb-8">
                   <div className="flex items-center justify-between">
                     <div>
@@ -682,30 +686,22 @@ export default function AdminPage() {
                         When enabled, anyone can view the winners at /results.
                       </p>
                     </div>
-                    <button
-                      onClick={async () => {
-                        const newValue = showResults === 'true' ? 'false' : 'true'
+                    <GsapToggle
+                      initialState={showResults === 'true'}
+                      onToggle={async (state) => {
+                        const newValue = state ? 'true' : 'false'
                         const { error } = await supabase
                           .from('site_content')
                           .update({ content: newValue })
                           .eq('key', 'show_results')
                         if (!error) {
                           setShowResults(newValue)
-                          alert(`Results are now ${newValue === 'true' ? 'visible' : 'hidden'} to the public.`)
+                          alert(`Results are now ${state ? 'visible' : 'hidden'} to the public.`)
                         } else {
                           alert('Error updating setting')
                         }
                       }}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
-                        showResults === 'true' ? 'bg-green-500' : 'bg-gray-600'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                          showResults === 'true' ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
+                    />
                   </div>
                 </div>
 
@@ -788,6 +784,8 @@ export default function AdminPage() {
                   ))}
                 </div>
               </>
+            ) : (
+              <p className="text-gray-400">No dashboard data available.</p>
             )}
           </div>
         )}
@@ -1227,5 +1225,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-    }
-
+      }
