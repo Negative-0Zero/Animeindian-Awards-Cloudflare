@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, ReactNode } from 'react'
-import anime from 'animejs'
+import anime from 'animejs/lib/anime.es.js'
 import './SubmitButton.css'
 
 interface SubmitButtonProps {
@@ -89,4 +89,4 @@ export default function SubmitButton({ onClick, children, className = '', disabl
       <div className="overlay"></div>
     </div>
   )
-        }
+                                  }
