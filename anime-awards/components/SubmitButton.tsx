@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, ReactNode } from 'react'
-import anime from 'animejs'
+import * as anime from 'animejs'
 import './SubmitButton.css'
 
 interface SubmitButtonProps {
@@ -16,9 +16,8 @@ export default function SubmitButton({ onClick, children, className = '', disabl
   const dotsRef = useRef<HTMLDivElement[]>([])
   const buttonRef = useRef<HTMLDivElement>(null)
   const count = 110
-  const dotSize = 4 // px – small dots
+  const dotSize = 4
 
-  // Create dots on mount
   useEffect(() => {
     if (!bottomRef.current) return
     const fragment = document.createDocumentFragment()
@@ -47,7 +46,6 @@ export default function SubmitButton({ onClick, children, className = '', disabl
   const handleClick = () => {
     if (disabled) return
 
-    // Animate dots exactly like the CodePen
     anime({
       targets: dotsRef.current,
       opacity: [{ value: 0, duration: 600, delay: anime.stagger(10) }],
@@ -68,9 +66,7 @@ export default function SubmitButton({ onClick, children, className = '', disabl
       },
       easing: 'linear',
       complete: () => {
-        // Call the onClick after animation
         onClick?.()
-        // Reset dots after a tiny delay (to ensure they reappear)
         setTimeout(resetDots, 50)
       }
     })
@@ -93,4 +89,4 @@ export default function SubmitButton({ onClick, children, className = '', disabl
       <div className="overlay"></div>
     </div>
   )
-        }
+}
