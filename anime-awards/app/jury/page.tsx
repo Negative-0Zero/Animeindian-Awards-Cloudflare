@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/utils/supabase/client'
 import Login from '@/components/Login'
 import FingerLoader from '@/components/FingerLoader'
-import SubmitButton from '@/components/SubmitButton'
-import { Trophy, Check, Lock, Ban, ChevronsUpDown, ChevronsDownUp, ThumbsUp } from 'lucide-react'
+import { Trophy, Check, Lock, Ban, ChevronsUpDown, ChevronsDownUp } from 'lucide-react'
 
 export default function JuryPage() {
   const router = useRouter()
@@ -259,20 +258,25 @@ export default function JuryPage() {
                                   <p className="text-sm text-gray-400">{nominee.anime_name}</p>
                                 )}
                                 <div className="mt-4">
-                                  <SubmitButton
+                                  <button
                                     onClick={() => handleVote(nominee.id, cat.name)}
                                     disabled={alreadyVoted}
+                                    className={`w-full px-4 py-2 rounded-full font-bold transition ${
+                                      alreadyVoted
+                                        ? 'bg-gray-600 cursor-not-allowed'
+                                        : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
+                                    }`}
                                   >
                                     {alreadyVoted ? (
-                                      <>
+                                      <span className="flex items-center justify-center gap-1">
                                         <Check size={16} /> Vote Cast
-                                      </>
+                                      </span>
                                     ) : (
-                                      <>
-                                        <ThumbsUp size={16} /> Vote as Jury
-                                      </>
+                                      <span className="flex items-center justify-center gap-1">
+                                        Vote as Jury
+                                      </span>
                                     )}
-                                  </SubmitButton>
+                                  </button>
                                 </div>
                               </div>
                             )
@@ -289,4 +293,4 @@ export default function JuryPage() {
       </div>
     </main>
   )
-}
+        }
