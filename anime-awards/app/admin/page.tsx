@@ -14,8 +14,19 @@ import {
   Pencil, Plus, Trash2, ArrowLeft, ArrowUp, ArrowDown,
   Check, Search, RefreshCw, Save, Lock, Ban, TrendingUp,
   ChevronsUpDown, ChevronsDownUp,
-  Tag, ExternalLink, Music2, Play,
+  Tag, ExternalLink, Music2, Play, Headphones, Podcast,
 } from "lucide-react"
+
+// Map for button icons
+const buttonIconMap: Record<string, React.ElementType> = {
+  ExternalLink,
+  Music2,
+  Play,
+  Film,
+  Radio,
+  Headphones,
+  Podcast
+};
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null)
@@ -81,7 +92,7 @@ export default function AdminPage() {
 
   // Available icons for nominee buttons
   const buttonIconOptions = [
-    'ExternalLink', 'Music2', 'Play', 'Film', 'Youtube', 'Radio', 'Headphones', 'Podcast'
+    'ExternalLink', 'Music2', 'Play', 'Film', 'Radio', 'Headphones', 'Podcast'
   ];
 
   // Available icons for categories (unchanged)
@@ -1038,8 +1049,9 @@ export default function AdminPage() {
                           <div className="divide-y divide-white/5">
                             {catNominees.map((n) => {
                               // Determine which icon to show for the button preview
-                              const ButtonIcon = n.button_icon ? 
-                                (iconMap[n.button_icon] || ExternalLink) : ExternalLink;
+                              const ButtonIcon = n.button_icon && buttonIconMap[n.button_icon] 
+                                ? buttonIconMap[n.button_icon] 
+                                : ExternalLink;
                               return (
                                 <div key={n.id} className="flex items-center gap-3 bg-slate-900/50 p-4 hover:bg-slate-800/50 transition-colors">
                                   <input
@@ -1088,7 +1100,7 @@ export default function AdminPage() {
           </>
         )}
 
-        {/* Categories Tab (unchanged) */}
+        {/* Categories Tab */}
         {activeTab === 'categories' && (
           <>
             <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 mb-8">
@@ -1262,7 +1274,7 @@ export default function AdminPage() {
           </>
         )}
 
-        {/* Content Tab (unchanged) */}
+        {/* Content Tab */}
         {activeTab === 'content' && (
           <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -1297,4 +1309,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-    }
+          }
