@@ -5,10 +5,21 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/utils/supabase/client'
 import Login from '@/components/Login'
-import FingerLoader from '@/components/FingerLoader'
 import VoteButton from '@/components/VoteButton'
-import { ArrowLeft, ArrowRight, ThumbsUp, Home } from 'lucide-react'
+import FingerLoader from '@/components/FingerLoader'
+import { ArrowLeft, ArrowRight, ThumbsUp, Home, ExternalLink, Music2, Play, Film, Radio, Headphones, Podcast } from 'lucide-react'
 import { fetchFromAPI } from '@/utils/api'
+
+// Map icon names to actual components
+const iconMap: Record<string, React.ElementType> = {
+  ExternalLink,
+  Music2,
+  Play,
+  Film,
+  Radio,
+  Headphones,
+  Podcast
+}
 
 export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
   const router = useRouter()
@@ -19,6 +30,7 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
   const [error, setError] = useState<string | null>(null)
   const [nextCategory, setNextCategory] = useState<{ slug: string; name: string } | null>(null)
   const [prevCategory, setPrevCategory] = useState<{ slug: string; name: string } | null>(null)
+  const [userVotes, setUserVotes] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (propSlug) {
@@ -61,11 +73,57 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
 
       const nomineesData = await fetchFromAPI(`/nominees?select=*&category=eq.${encodeURIComponent(categoryName)}&order=created_at.asc`)
       setNominees(nomineesData || [])
+
+      // Load user's existing votes for this category
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: votes } = await supabase
+          .from('votes')
+          .select('nominee_id')
+          .eq('user_id', user.id)
+          .eq('category', categoryName)
+          .eq('is_jury', false)
+        if (votes && votes.length > 0) {
+          const voteMap: Record<string, string> = {}
+          votes.forEach(v => { voteMap[categoryName] = v.nominee_id })
+          setUserVotes(voteMap)
+        }
+      }
     } catch (err: any) {
       console.error('Error in CategoryClient:', err)
       setError(err.message || 'Failed to load nominees.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleVote(nomineeId: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      alert('Please log in to vote.')
+      return
+    }
+    if (userVotes[category]) {
+      alert('You have already voted in this category.')
+      return
+    }
+
+    const { error } = await supabase.from('votes').insert([{
+      user_id: user.id,
+      category,
+      nominee_id: nomineeId,
+      is_jury: false
+    }])
+
+    if (error) {
+      if (error.code === '23505') {
+        alert('You already voted in this category.')
+      } else {
+        alert('Error: ' + error.message)
+      }
+    } else {
+      setUserVotes(prev => ({ ...prev, [category]: nomineeId }))
+      alert('Vote recorded!')
     }
   }
 
@@ -102,6 +160,8 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
       </main>
     )
   }
+
+  const hasVoted = !!userVotes[category]
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -142,32 +202,52 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {nominees.map((nominee) => (
-              <div
-                key={nominee.id}
-                className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 hover:border-white/30 transition-all"
-              >
-                {nominee.image_url && (
-                  <img
-                    src={nominee.image_url}
-                    alt={nominee.title}
-                    className="w-full h-48 object-cover rounded-xl mb-4"
-                  />
-                )}
-                <h2 className="text-2xl font-bold mb-2">{nominee.title}</h2>
-                {nominee.anime_name && (
-                  <p className="text-gray-400 text-sm mb-4">{nominee.anime_name}</p>
-                )}
-                <div className="mt-4">
-                  <VoteButton
-                    nomineeId={nominee.id}
-                    category={category}
-                    onVoteSuccess={fetchCategoryAndNeighbors}
-                    className="w-full"
-                  />
+            {nominees.map((nominee) => {
+              const isVoted = userVotes[category] === nominee.id
+              const ButtonIcon = nominee.button_icon && iconMap[nominee.button_icon] 
+                ? iconMap[nominee.button_icon] 
+                : ExternalLink
+
+              return (
+                <div
+                  key={nominee.id}
+                  className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 hover:border-white/30 transition-all"
+                >
+                  {nominee.image_url && (
+                    <img
+                      src={nominee.image_url}
+                      alt={nominee.title}
+                      className="w-full h-48 object-cover rounded-xl mb-4"
+                    />
+                  )}
+                  <h2 className="text-2xl font-bold mb-2">{nominee.title}</h2>
+                  {nominee.anime_name && (
+                    <p className="text-gray-400 text-sm mb-4">{nominee.anime_name}</p>
+                  )}
+                  <div className="space-y-2">
+                    <VoteButton
+                      nomineeId={nominee.id}
+                      category={category}
+                      onVoteSuccess={fetchCategoryAndNeighbors}
+                      className="w-full"
+                    />
+                    
+                    {/* External button */}
+                    {nominee.external_url && nominee.button_label && (
+                      <a
+                        href={nominee.external_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-1 w-full px-4 py-2 rounded-full text-sm font-bold transition-all bg-slate-700 hover:bg-slate-600 text-white"
+                      >
+                        <ButtonIcon size={16} />
+                        {nominee.button_label}
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
@@ -215,4 +295,4 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
       </section>
     </main>
   )
-        }
+  }
