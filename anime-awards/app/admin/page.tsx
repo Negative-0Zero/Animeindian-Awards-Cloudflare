@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Login from '@/components/Login'
+import FingerLoader from '@/components/FingerLoader' 
 import {
   Trophy, Calendar, Star, Flame, Heart, Zap,
   Clapperboard, Mic, Tv, ArrowRight,
@@ -569,7 +570,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-        <div className="text-center">Loading...</div>
+        <FingerLoader />
       </div>
     )
   }
@@ -686,9 +687,11 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {dashboardLoading && <p className="text-gray-400">Loading dashboard data...</p>}
-
-            {dashboardData && (
+            {dashboardLoading ? (
+              <div className="flex justify-center py-12">
+                <FingerLoader />
+              </div>
+            ) : dashboardData ? (
               <>
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -823,6 +826,8 @@ export default function AdminPage() {
                   ))}
                 </div>
               </>
+            ) : (
+              <p className="text-gray-400">No dashboard data available.</p>
             )}
           </div>
         )}
@@ -1309,4 +1314,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-          }
+                             }
