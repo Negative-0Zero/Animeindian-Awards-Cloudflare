@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Login from '@/components/Login'
-import FingerLoader from '@/components/FingerLoader'
 import {
   Trophy, Calendar, Star, Flame, Heart, Zap,
   Clapperboard, Mic, Tv, ArrowRight,
@@ -15,7 +14,7 @@ import {
   Pencil, Plus, Trash2, ArrowLeft, ArrowUp, ArrowDown,
   Check, Search, RefreshCw, Save, Lock, Ban, TrendingUp,
   ChevronsUpDown, ChevronsDownUp,
-  Tag,
+  Tag, ExternalLink, Music2, Play,
 } from "lucide-react"
 
 export default function AdminPage() {
@@ -31,7 +30,10 @@ export default function AdminPage() {
     category: '',
     title: '',
     anime_name: '',
-    image_url: ''
+    image_url: '',
+    external_url: '',
+    button_label: '',
+    button_icon: 'ExternalLink'
   })
   const [categories, setCategories] = useState<any[]>([])
   const [editingNomineeId, setEditingNomineeId] = useState<string | null>(null)
@@ -77,7 +79,12 @@ export default function AdminPage() {
   // ----- Rebuild Debounce -----
   let rebuildTimeout: NodeJS.Timeout;
 
-  // Available icons (unchanged)
+  // Available icons for nominee buttons
+  const buttonIconOptions = [
+    'ExternalLink', 'Music2', 'Play', 'Film', 'Youtube', 'Radio', 'Headphones', 'Podcast'
+  ];
+
+  // Available icons for categories (unchanged)
   const iconOptions = [
     'Trophy', 'Clapperboard', 'Mic', 'Flame', 'Zap', 'Heart', 'Tv', 'Star',
     'Sword', 'Crown', 'Award', 'Medal', 'Sparkles', 'Camera', 'Film',
@@ -312,6 +319,9 @@ export default function AdminPage() {
       title: nomineeForm.title,
       anime_name: nomineeForm.anime_name || null,
       image_url: nomineeForm.image_url || null,
+      external_url: nomineeForm.external_url || null,
+      button_label: nomineeForm.button_label || null,
+      button_icon: nomineeForm.button_icon || null,
       submitted_by: user?.id
     }])
 
@@ -330,7 +340,10 @@ export default function AdminPage() {
       category: nominee.category,
       title: nominee.title,
       anime_name: nominee.anime_name || '',
-      image_url: nominee.image_url || ''
+      image_url: nominee.image_url || '',
+      external_url: nominee.external_url || '',
+      button_label: nominee.button_label || '',
+      button_icon: nominee.button_icon || 'ExternalLink'
     })
   }
 
@@ -345,7 +358,10 @@ export default function AdminPage() {
         category: nomineeForm.category,
         title: nomineeForm.title,
         anime_name: nomineeForm.anime_name || null,
-        image_url: nomineeForm.image_url || null
+        image_url: nomineeForm.image_url || null,
+        external_url: nomineeForm.external_url || null,
+        button_label: nomineeForm.button_label || null,
+        button_icon: nomineeForm.button_icon || null
       })
       .eq('id', editingNomineeId)
 
@@ -364,7 +380,10 @@ export default function AdminPage() {
       category: categories[0] || '',
       title: '',
       anime_name: '',
-      image_url: ''
+      image_url: '',
+      external_url: '',
+      button_label: '',
+      button_icon: 'ExternalLink'
     })
   }
 
@@ -539,7 +558,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-        <FingerLoader />
+        <div className="text-center">Loading...</div>
       </div>
     )
   }
@@ -656,11 +675,9 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {dashboardLoading ? (
-              <div className="flex justify-center py-12">
-                <FingerLoader />
-              </div>
-            ) : dashboardData ? (
+            {dashboardLoading && <p className="text-gray-400">Loading dashboard data...</p>}
+
+            {dashboardData && (
               <>
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -678,7 +695,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Settings Toggle (original version) */}
+                {/* Settings Toggle */}
                 <div className="bg-slate-800/50 rounded-lg p-4 border border-white/5 mb-8">
                   <div className="flex items-center justify-between">
                     <div>
@@ -795,8 +812,6 @@ export default function AdminPage() {
                   ))}
                 </div>
               </>
-            ) : (
-              <p className="text-gray-400">No dashboard data available.</p>
             )}
           </div>
         )}
@@ -854,7 +869,46 @@ export default function AdminPage() {
                     className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white"
                   />
                 </div>
-                <div className="flex gap-3">
+
+                {/* New fields for external button */}
+                <div className="border-t border-white/10 pt-4 mt-4">
+                  <h3 className="text-lg font-semibold mb-3">External Link Button</h3>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">External URL (optional)</label>
+                    <input
+                      type="url"
+                      value={nomineeForm.external_url}
+                      onChange={(e) => setNomineeForm({ ...nomineeForm, external_url: e.target.value })}
+                      placeholder="https://youtube.com/watch?v=... or https://myanimelist.net/anime/..."
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white"
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-sm text-gray-400 mb-1">Button Label (optional)</label>
+                    <input
+                      type="text"
+                      value={nomineeForm.button_label}
+                      onChange={(e) => setNomineeForm({ ...nomineeForm, button_label: e.target.value })}
+                      placeholder="e.g. Listen on YouTube"
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">If empty, no button will be shown.</p>
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-sm text-gray-400 mb-1">Button Icon</label>
+                    <select
+                      value={nomineeForm.button_icon}
+                      onChange={(e) => setNomineeForm({ ...nomineeForm, button_icon: e.target.value })}
+                      className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white"
+                    >
+                      {buttonIconOptions.map(icon => (
+                        <option key={icon} value={icon}>{icon}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-4">
                   <button
                     type="submit"
                     className="bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold px-6 py-3 rounded-full hover:scale-105 transition-all flex items-center gap-1"
@@ -878,7 +932,7 @@ export default function AdminPage() {
             <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <ClipboardList /> Current Nominees 
+                  <ClipboardList /> Current Nominees
                 </h2>
                 <div className="flex gap-2">
                   <button
@@ -982,37 +1036,47 @@ export default function AdminPage() {
                         </div>
                         {isExpanded && (
                           <div className="divide-y divide-white/5">
-                            {catNominees.map((n) => (
-                              <div key={n.id} className="flex items-center gap-3 bg-slate-900/50 p-4 hover:bg-slate-800/50 transition-colors">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedNominees.has(n.id)}
-                                  onChange={() => toggleSelectNominee(n.id)}
-                                  className="w-4 h-4"
-                                />
-                                <div className="flex-1">
-                                  <p className="font-medium">{n.title}</p>
-                                  {n.anime_name && <p className="text-sm text-gray-400">{n.anime_name}</p>}
-                                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                    <ThumbsUp size={12} /> Votes: {n.votes_public}
-                                  </p>
+                            {catNominees.map((n) => {
+                              // Determine which icon to show for the button preview
+                              const ButtonIcon = n.button_icon ? 
+                                (iconMap[n.button_icon] || ExternalLink) : ExternalLink;
+                              return (
+                                <div key={n.id} className="flex items-center gap-3 bg-slate-900/50 p-4 hover:bg-slate-800/50 transition-colors">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedNominees.has(n.id)}
+                                    onChange={() => toggleSelectNominee(n.id)}
+                                    className="w-4 h-4"
+                                  />
+                                  <div className="flex-1">
+                                    <p className="font-medium">{n.title}</p>
+                                    {n.anime_name && <p className="text-sm text-gray-400">{n.anime_name}</p>}
+                                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                      <ThumbsUp size={12} /> Votes: {n.votes_public}
+                                    </p>
+                                    {n.external_url && n.button_label && (
+                                      <p className="text-xs text-blue-400 mt-1 flex items-center gap-1">
+                                        <ButtonIcon size={10} /> {n.button_label}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2 ml-4">
+                                    <button
+                                      onClick={() => editNominee(n)}
+                                      className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-500/30 hover:border-blue-500/50 flex items-center gap-1"
+                                    >
+                                      <Pencil size={12} /> Edit
+                                    </button>
+                                    <button
+                                      onClick={() => deleteNominee(n.id)}
+                                      className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-500/30 hover:border-red-500/50 flex items-center gap-1"
+                                    >
+                                      <Trash2 size={12} /> Delete
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="flex gap-2 ml-4">
-                                  <button
-                                    onClick={() => editNominee(n)}
-                                    className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-500/30 hover:border-blue-500/50 flex items-center gap-1"
-                                  >
-                                    <Pencil size={12} /> Edit
-                                  </button>
-                                  <button
-                                    onClick={() => deleteNominee(n.id)}
-                                    className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-500/30 hover:border-red-500/50 flex items-center gap-1"
-                                  >
-                                    <Trash2 size={12} /> Delete
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         )}
                       </div>
@@ -1024,7 +1088,7 @@ export default function AdminPage() {
           </>
         )}
 
-        {/* Categories Tab – Cards with buttons at bottom */}
+        {/* Categories Tab (unchanged) */}
         {activeTab === 'categories' && (
           <>
             <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 mb-8">
@@ -1139,7 +1203,6 @@ export default function AdminPage() {
                       key={cat.id}
                       className="bg-slate-800/50 border border-white/10 rounded-xl p-4 flex flex-col h-full"
                     >
-                      {/* Card Content */}
                       <div className="flex-1">
                         <p className="font-medium text-lg mb-2">{cat.name}</p>
                         <div className="text-sm text-gray-400 space-y-1 mb-3">
@@ -1157,8 +1220,6 @@ export default function AdminPage() {
                           )}
                         </div>
                       </div>
-
-                      {/* Buttons Row – always at bottom */}
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
                         <div className="flex gap-1">
                           <button
@@ -1201,7 +1262,7 @@ export default function AdminPage() {
           </>
         )}
 
-        {/* Content Tab */}
+        {/* Content Tab (unchanged) */}
         {activeTab === 'content' && (
           <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -1236,4 +1297,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-                    }
+    }
