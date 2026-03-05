@@ -97,36 +97,6 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
     }
   }
 
-  async function handleVote(nomineeId: string) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      alert('Please log in to vote.')
-      return
-    }
-    if (userVotes[category]) {
-      alert('You have already voted in this category.')
-      return
-    }
-
-    const { error } = await supabase.from('votes').insert([{
-      user_id: user.id,
-      category,
-      nominee_id: nomineeId,
-      is_jury: false
-    }])
-
-    if (error) {
-      if (error.code === '23505') {
-        alert('You already voted in this category.')
-      } else {
-        alert('Error: ' + error.message)
-      }
-    } else {
-      setUserVotes(prev => ({ ...prev, [category]: nomineeId }))
-      alert('Vote recorded!')
-    }
-  }
-
   if (!slug && !error) {
     return (
       <main className="min-h-screen bg-slate-950 text-white p-6">
@@ -295,4 +265,4 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
       </section>
     </main>
   )
-  }
+        }
