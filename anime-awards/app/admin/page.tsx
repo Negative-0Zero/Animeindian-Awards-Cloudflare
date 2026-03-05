@@ -573,7 +573,7 @@ export default function AdminPage() {
     setExpandedCategories(new Set())
   }
 
-  // ─── PURGE FUNCTION ─────────────────────────────────────────
+  // ─── PURGE FUNCTION (UPDATED) ───────────────────────────────
   const purgeCache = async () => {
     if (!purgeUrls.trim()) {
       alert('Please enter URLs to purge (one per line)');
@@ -582,23 +582,20 @@ export default function AdminPage() {
     const urls = purgeUrls.split('\n').map(u => u.trim()).filter(u => u);
     setPurging(true);
     try {
-      const res = await fetch(`${WORKER_URL}/purge`, {
+      const res = await fetch('/api/purge', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_PURGE_SECRET}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ urls }),
       });
+      const data = await res.json();
       if (res.ok) {
-        alert('✅ Cache purged successfully!');
+        alert('Cache purged successfully!');
         setPurgeUrls('');
       } else {
-        const text = await res.text();
-        alert('❌ Purge failed: ' + text);
+        alert('Purge failed: ' + data.error);
       }
     } catch (err: any) {
-      alert('❌ Error: ' + err.message);
+      alert('Error: ' + err.message);
     } finally {
       setPurging(false);
     }
@@ -868,7 +865,7 @@ export default function AdminPage() {
               <p className="text-gray-400">No dashboard data available.</p>
             )}
 
-            {/* Manual Cache Purge */}
+            {/* Manual Cache Purge - UPDATED */}
             <div className="mt-8 bg-slate-800/50 rounded-lg p-4 border border-white/5">
               <h3 className="font-bold mb-2 flex items-center gap-1">
                 <RefreshCw size={16} /> Manual Cache Purge
@@ -888,7 +885,7 @@ export default function AdminPage() {
                 disabled={purging}
                 className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-full text-sm transition flex items-center gap-1"
               >
-                {purging ? 'Purging...' : '🚀 Purge Now'}
+                {purging ? 'Purging...' : 'Purge Now'}
               </button>
             </div>
           </div>
@@ -1376,4 +1373,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-         }
+    }
