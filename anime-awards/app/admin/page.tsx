@@ -91,12 +91,15 @@ export default function AdminPage() {
   const [contentMessage, setContentMessage] = useState('')
   const [showResults, setShowResults] = useState('false')
 
-  // ----- Rebuild Debounce -----
-  let rebuildTimeout: NodeJS.Timeout;
+  // ----- Purge Debounce -----
+  let purgeTimeout: NodeJS.Timeout;
 
   // ----- Purge State -----
   const [purgeUrls, setPurgeUrls] = useState('');
   const [purging, setPurging] = useState(false);
+
+  // ----- Rebuild State -----
+  const [rebuilding, setRebuilding] = useState(false);
 
   // Available icons for nominee buttons
   const buttonIconOptions = [
@@ -110,6 +113,58 @@ export default function AdminPage() {
     'Music', 'Radio', 'Gamepad', 'Brain', 'Cloud', 'Sun', 'Moon',
     'Smile', 'ThumbsUp', 'Flag', 'Gift', 'Globe', 'Leaf', 'Diamond'
   ]
+
+  // ─── HELPER: PURGE SPECIFIC URLS ─────────────────────────────
+  const purgeUrlsList = async (urls: string[]) => {
+    if (urls.length === 0) return;
+    try {
+      const res = await fetch('/api/purge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls }),
+      });
+      if (res.ok) {
+        console.log('Purged URLs:', urls);
+      } else {
+        const data = await res.json();
+        console.error('Purge failed:', data.error);
+      }
+    } catch (err) {
+      console.error('Error purging URLs:', err);
+    }
+  };
+
+  // ─── HELPER: GENERATE URLS TO PURGE BASED ON CHANGE ──────────
+  const getUrlsToPurge = (type: 'category' | 'nominee' | 'all', categoryName?: string): string[] => {
+    const base = WORKER_URL.replace(/\/$/, '');
+    const urls: string[] = [];
+
+    // Always purge category list (used on homepage and navigation)
+    urls.push(`${base}/categories?select=*&order=display_order.asc`);
+    urls.push(`${base}/categories?select=slug,name,display_order&order=display_order.asc`);
+
+    // If a specific category is involved, purge its nominee list
+    if (categoryName) {
+      urls.push(`${base}/nominees?select=*&category=eq.${encodeURIComponent(categoryName)}&order=created_at.asc`);
+    }
+
+    // If it's a nominee change (without category specified) or 'all', purge all nominee lists
+    if (type === 'nominee' || type === 'all') {
+      urls.push(`${base}/nominees?select=*&order=created_at.asc`);
+    }
+
+    // Remove duplicates
+    return [...new Set(urls)];
+  };
+
+  // ─── DEBOUNCED PURGE ─────────────────────────────────────────
+  const debouncedPurge = (type: 'category' | 'nominee' | 'all', categoryName?: string) => {
+    clearTimeout(purgeTimeout);
+    purgeTimeout = setTimeout(() => {
+      const urls = getUrlsToPurge(type, categoryName);
+      purgeUrlsList(urls);
+    }, 2000); // Wait 2 seconds after last change before purging
+  };
 
   // ─── AUTH CHECK + REACTIVE LISTENER ──────────────────────────
   async function checkUser() {
@@ -184,7 +239,6 @@ export default function AdminPage() {
     }
   }
 
-  // Added error handling
   async function fetchRulesContent() {
     try {
       const { data } = await supabase
@@ -198,7 +252,6 @@ export default function AdminPage() {
     }
   }
 
-  // Added error handling
   async function fetchSettings() {
     try {
       const { data } = await supabase
@@ -224,6 +277,7 @@ export default function AdminPage() {
       setContentMessage('Error: ' + error.message)
     } else {
       setContentMessage('Success: Rules page updated!')
+      // No cache purge needed for content changes
     }
     setSavingContent(false)
   }
@@ -315,6 +369,7 @@ export default function AdminPage() {
       } else {
         alert(`Success: Deleted ${selectedNominees.size} nominee(s).`)
         fetchNominees()
+        debouncedPurge('nominee'); // Purge cache
       }
       setBulkProcessing(false)
     } else if (bulkAction === 'move') {
@@ -330,6 +385,7 @@ export default function AdminPage() {
       } else {
         alert(`Success: Moved ${selectedNominees.size} nominee(s) to "${targetCategory}".`)
         fetchNominees()
+        debouncedPurge('nominee'); // Purge cache
         setTargetCategory('')
       }
       setBulkProcessing(false)
@@ -360,6 +416,7 @@ export default function AdminPage() {
       alert('Success: Nominee added!')
       resetNomineeForm()
       fetchNominees()
+      debouncedPurge('nominee', nomineeForm.category);
     }
   }
 
@@ -400,6 +457,7 @@ export default function AdminPage() {
       alert('Success: Nominee updated!')
       resetNomineeForm()
       fetchNominees()
+      debouncedPurge('nominee', nomineeForm.category);
     }
   }
 
@@ -418,32 +476,17 @@ export default function AdminPage() {
 
   async function deleteNominee(id: string) {
     if (!confirm('Are you sure?')) return
+    const nominee = nominees.find(n => n.id === id);
     const { error } = await supabase.from('nominees').delete().eq('id', id)
-    if (!error) fetchNominees()
-  }
-
-  // ─── CLOUDFLARE REBUILD HOOK (UPDATED to use API route) ─────
-  const triggerRebuild = async () => {
-    try {
-      const res = await fetch('/api/rebuild', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (res.ok) {
-        console.log('Rebuild triggered successfully');
+    if (!error) {
+      fetchNominees()
+      if (nominee) {
+        debouncedPurge('nominee', nominee.category);
       } else {
-        console.error('Rebuild trigger failed:', data.error);
+        debouncedPurge('nominee');
       }
-    } catch (error) {
-      console.error('Error triggering rebuild:', error);
     }
-  };
-
-  const debouncedRebuild = () => {
-    clearTimeout(rebuildTimeout);
-    rebuildTimeout = setTimeout(() => triggerRebuild(), 5000);
-  };
+  }
 
   // ─── CATEGORY HANDLERS (with slug fallback) ─────────────────
   async function addCategory(e: React.FormEvent) {
@@ -458,7 +501,7 @@ export default function AdminPage() {
       alert('Success: Category added!')
       setCategoryForm({ name: '', slug: '', icon_name: 'Trophy', color: 'group-hover:border-yellow-500/50', gradient: 'from-yellow-600/20', description: '' })
       fetchCategories()
-      debouncedRebuild()
+      debouncedPurge('category');
     }
   }
 
@@ -481,7 +524,7 @@ export default function AdminPage() {
     if (error) {
       alert('Error: ' + error.message)
     } else {
-      await debouncedRebuild();
+      debouncedPurge('category');
       alert('Success: Category updated!');
       setEditingCategoryId(null);
       setCategoryForm({ name: '', slug: '', icon_name: 'Trophy', color: 'group-hover:border-yellow-500/50', gradient: 'from-yellow-600/20', description: '' });
@@ -497,7 +540,7 @@ export default function AdminPage() {
     if (!error) {
       fetchCategories()
       fetchNominees()
-      debouncedRebuild()
+      debouncedPurge('all');
     }
   }
 
@@ -540,7 +583,7 @@ export default function AdminPage() {
       alert('Error reordering: ' + (error1?.message || error2?.message))
     } else {
       await fetchCategories()
-      debouncedRebuild()
+      debouncedPurge('category');
     }
     setReordering(false)
   }
@@ -585,7 +628,7 @@ export default function AdminPage() {
     setExpandedCategories(new Set())
   }
 
-  // ─── PURGE FUNCTION (UPDATED) ───────────────────────────────
+  // ─── PURGE FUNCTION (MANUAL) ────────────────────────────────
   const purgeCache = async () => {
     if (!purgeUrls.trim()) {
       alert('Please enter URLs to purge (one per line)');
@@ -610,6 +653,27 @@ export default function AdminPage() {
       alert('Error: ' + err.message);
     } finally {
       setPurging(false);
+    }
+  };
+
+  // ─── REBUILD FUNCTION ───────────────────────────────────────
+  const triggerRebuild = async () => {
+    setRebuilding(true);
+    try {
+      const res = await fetch('/api/rebuild', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Rebuild triggered successfully! The site will update in a few minutes.');
+      } else {
+        alert('Rebuild failed: ' + data.error);
+      }
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    } finally {
+      setRebuilding(false);
     }
   };
 
@@ -820,7 +884,7 @@ export default function AdminPage() {
                   </button>
                 </div>
 
-                {/* Reconcile Votes - NEW */}
+                {/* Reconcile Votes */}
                 <div className="bg-slate-800/50 rounded-lg p-4 border border-white/5 mb-8">
                   <h3 className="font-bold mb-2 flex items-center gap-1">
                     <RefreshCw size={16} /> Reconcile Vote Counts
@@ -836,7 +900,7 @@ export default function AdminPage() {
                         const { error } = await supabase.rpc('reconcile_votes')
                         if (error) throw error
                         alert('Vote counts reconciled successfully!')
-                        fetchDashboardData() // refresh dashboard data
+                        fetchDashboardData()
                       } catch (err: any) {
                         alert('Error: ' + err.message)
                       }
@@ -925,6 +989,23 @@ export default function AdminPage() {
                 className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-full text-sm transition flex items-center gap-1"
               >
                 {purging ? 'Purging...' : 'Purge Now'}
+              </button>
+            </div>
+
+            {/* Manual Rebuild Button */}
+            <div className="mt-4 bg-slate-800/50 rounded-lg p-4 border border-white/5">
+              <h3 className="font-bold mb-2 flex items-center gap-1">
+                <RefreshCw size={16} /> Rebuild Site
+              </h3>
+              <p className="text-sm text-gray-400 mb-3">
+                Trigger a full Cloudflare Pages rebuild. This will deploy the latest changes from your repository.
+              </p>
+              <button
+                onClick={triggerRebuild}
+                disabled={rebuilding}
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-full text-sm transition flex items-center gap-1"
+              >
+                {rebuilding ? 'Rebuilding...' : 'Rebuild Now'}
               </button>
             </div>
           </div>
@@ -1412,4 +1493,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-    }
+                          }
