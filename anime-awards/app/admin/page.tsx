@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Login from '@/components/Login'
+import FingerLoader from '@/components/FingerLoader' 
 import {
   Trophy, Calendar, Star, Flame, Heart, Zap,
   Clapperboard, Mic, Tv, ArrowRight,
@@ -14,11 +15,22 @@ import {
   Pencil, Plus, Trash2, ArrowLeft, ArrowUp, ArrowDown,
   Check, Search, RefreshCw, Save, Lock, Ban, TrendingUp,
   ChevronsUpDown, ChevronsDownUp,
-  Tag,
+  Tag, ExternalLink, Music2, Play, Headphones, Podcast,
 } from "lucide-react"
 
 // Your Cloudflare Worker URL – replace with your actual worker domain
-const WORKER_URL = 'https://animeawards-api-cache.negativezero338.workers.dev';
+const WORKER_URL = 'https://animeawards-api-cache.negativezero338.workers.dev/';
+
+// Map for button icons
+const buttonIconMap: Record<string, React.ElementType> = {
+  ExternalLink,
+  Music2,
+  Play,
+  Film,
+  Radio,
+  Headphones,
+  Podcast
+};
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null)
@@ -83,15 +95,15 @@ export default function AdminPage() {
   let rebuildTimeout: NodeJS.Timeout;
 
   // ----- Purge State -----
-  const [purgeUrls, setPurgeUrls] = useState('')
-  const [purging, setPurging] = useState(false)
+  const [purgeUrls, setPurgeUrls] = useState('');
+  const [purging, setPurging] = useState(false);
 
   // Available icons for nominee buttons
   const buttonIconOptions = [
     'ExternalLink', 'Music2', 'Play', 'Film', 'Radio', 'Headphones', 'Podcast'
   ];
 
-  // Available icons for categories
+  // Available icons for categories (unchanged)
   const iconOptions = [
     'Trophy', 'Clapperboard', 'Mic', 'Flame', 'Zap', 'Heart', 'Tv', 'Star',
     'Sword', 'Crown', 'Award', 'Medal', 'Sparkles', 'Camera', 'Film',
@@ -99,7 +111,7 @@ export default function AdminPage() {
     'Smile', 'ThumbsUp', 'Flag', 'Gift', 'Globe', 'Leaf', 'Diamond'
   ]
 
-  // ─── AUTH CHECK ─────────────────────────────────────────────
+  // ─── AUTH CHECK + REACTIVE LISTENER ──────────────────────────
   async function checkUser() {
     const { data: { user } } = await supabase.auth.getUser()
     setUser(user)
@@ -131,102 +143,63 @@ export default function AdminPage() {
     return () => listener?.subscription.unsubscribe()
   }, [])
 
-  // ─── DATA FETCHING (via Worker with X-Admin header) ─────────
-  async function fetchWithAdmin(path: string) {
-    const res = await fetch(`${WORKER_URL}${path}`, {
-      headers: {
-        'X-Admin': 'true',
-        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  }
+  // ─── DATA FETCHING ──────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !isAdmin) return
+    fetchNominees()
+    fetchCategories()
+    fetchRulesContent()
+    fetchSettings()
+    if (activeTab === 'dashboard') fetchDashboardData()
+  }, [user, isAdmin, activeTab])
+
+  // Initialize expanded categories whenever categoryList changes
+  useEffect(() => {
+    if (categoryList.length > 0) {
+      setExpandedCategories(new Set(categoryList.map(c => c.id)))
+    }
+  }, [categoryList])
 
   async function fetchNominees() {
-    try {
-      const data = await fetchWithAdmin('/nominees?select=*&order=created_at.desc');
-      setNominees(data || []);
-      setSelectedNominees(new Set());
-    } catch (err) {
-      console.error('Error fetching nominees:', err);
-    }
+    const { data } = await supabase
+      .from('nominees')
+      .select('*')
+      .order('created_at', { ascending: false })
+    setNominees(data || [])
+    setSelectedNominees(new Set())
   }
 
   async function fetchCategories() {
-    try {
-      const data = await fetchWithAdmin('/categories?select=*&order=display_order.asc&order=name.asc');
-      setCategoryList(data || []);
-      if (data) {
-        setCategories(data.map((c: any) => c.name));
-        if (data.length > 0 && !nomineeForm.category) {
-          setNomineeForm(prev => ({ ...prev, category: data[0].name }));
-        }
+    const { data } = await supabase
+      .from('categories')
+      .select('*')
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true })
+    setCategoryList(data || [])
+    if (data) {
+      setCategories(data.map(c => c.name))
+      if (data.length > 0 && !nomineeForm.category) {
+        setNomineeForm(prev => ({ ...prev, category: data[0].name }))
       }
-    } catch (err) {
-      console.error('Error fetching categories:', err);
     }
   }
 
   async function fetchRulesContent() {
-    try {
-      const data = await fetchWithAdmin('/site_content?select=content&key=eq.rules');
-      if (data && data[0]) setRulesContent(data[0].content);
-    } catch (err) {
-      console.error('Error fetching rules:', err);
-    }
+    const { data } = await supabase
+      .from('site_content')
+      .select('content')
+      .eq('key', 'rules')
+      .single()
+    if (data) setRulesContent(data.content)
   }
 
   async function fetchSettings() {
-    try {
-      const data = await fetchWithAdmin('/site_content?select=content&key=eq.show_results');
-      if (data && data[0]) setShowResults(data[0].content);
-    } catch (err) {
-      console.error('Error fetching settings:', err);
-    }
-  }
-
-  async function fetchDashboardData() {
-    setDashboardLoading(true)
-    try {
-      const data = await fetchWithAdmin('/nominees?select=category,title,votes_public');
-      // --- aggregation logic (unchanged) ---
-      const nomineesData = data || [];
-      const { count: totalCategories } = await supabase
-        .from('categories')
-        .select('*', { count: 'exact', head: true });
-      const totalVotes = nomineesData.reduce((sum: number, n: any) => sum + (n.votes_public || 0), 0);
-      const totalNominees = nomineesData.length;
-
-      const grouped = nomineesData.reduce((acc: any, n: any) => {
-        if (!acc[n.category]) acc[n.category] = { totalVotes: 0, nominees: [] };
-        acc[n.category].totalVotes += n.votes_public || 0;
-        acc[n.category].nominees.push(n);
-        return acc;
-      }, {});
-
-      const categoryStats = Object.entries(grouped)
-        .map(([category, data]: [string, any]) => ({
-          category,
-          totalVotes: data.totalVotes,
-          nominees: data.nominees.sort((a: any, b: any) => (b.votes_public || 0) - (a.votes_public || 0))
-        }))
-        .sort((a, b) => b.totalVotes - a.totalVotes);
-
-      setDashboardData({
-        totalVotes,
-        totalNominees,
-        totalCategories: totalCategories || 0,
-        categoryStats
-      });
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      alert('Failed to load dashboard data.');
-    } finally {
-      setDashboardLoading(false);
-    }
+    const { data } = await supabase
+      .from('site_content')
+      .select('content')
+      .eq('key', 'show_results')
+      .single()
+    if (data) setShowResults(data.content)
   }
 
   async function saveRulesContent() {
@@ -236,12 +209,61 @@ export default function AdminPage() {
       .from('site_content')
       .update({ content: rulesContent, updated_at: new Date().toISOString() })
       .eq('key', 'rules')
+
     if (error) {
       setContentMessage('Error: ' + error.message)
     } else {
       setContentMessage('Success: Rules page updated!')
     }
     setSavingContent(false)
+  }
+
+  // ─── DASHBOARD DATA ─────────────────────────────────────────
+  async function fetchDashboardData() {
+    setDashboardLoading(true)
+    try {
+      const { data: nomineesData, error: nomError } = await supabase
+        .from('nominees')
+        .select('category, title, votes_public')
+
+      if (nomError) throw nomError
+
+      const { count: totalCategories, error: catCountError } = await supabase
+        .from('categories')
+        .select('*', { count: 'exact', head: true })
+
+      if (catCountError) throw catCountError
+
+      const totalVotes = nomineesData?.reduce((sum, n) => sum + (n.votes_public || 0), 0) || 0
+      const totalNominees = nomineesData?.length || 0
+
+      const grouped = (nomineesData || []).reduce((acc, n) => {
+        if (!acc[n.category]) acc[n.category] = { totalVotes: 0, nominees: [] }
+        acc[n.category].totalVotes += n.votes_public || 0
+        acc[n.category].nominees.push(n)
+        return acc
+      }, {} as Record<string, { totalVotes: number; nominees: any[] }>)
+
+      const categoryStats = Object.entries(grouped)
+        .map(([category, data]) => ({
+          category,
+          totalVotes: data.totalVotes,
+          nominees: data.nominees.sort((a, b) => (b.votes_public || 0) - (a.votes_public || 0))
+        }))
+        .sort((a, b) => b.totalVotes - a.totalVotes)
+
+      setDashboardData({
+        totalVotes,
+        totalNominees,
+        totalCategories: totalCategories || 0,
+        categoryStats
+      })
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err)
+      alert('Failed to load dashboard data.')
+    } finally {
+      setDashboardLoading(false)
+    }
   }
 
   // ─── BULK ACTIONS ───────────────────────────────────────────
@@ -511,6 +533,46 @@ export default function AdminPage() {
     setReordering(false)
   }
 
+  // ─── GROUP NOMINEES BY CATEGORY ─────────────────────────────
+  const groupedNominees = useMemo(() => {
+    const grouped: Record<string, any[]> = {}
+    nominees.forEach(n => {
+      if (!grouped[n.category]) grouped[n.category] = []
+      grouped[n.category].push(n)
+    })
+    return grouped
+  }, [nominees])
+
+  // ─── SORT CATEGORIES WITH SELECTED AT TOP ──────────────────
+  const sortedCategories = useMemo(() => {
+    if (!nomineeForm.category || categoryList.length === 0) return categoryList
+    const selectedCat = categoryList.find(c => c.name === nomineeForm.category)
+    if (!selectedCat) return categoryList
+    const others = categoryList.filter(c => c.name !== nomineeForm.category)
+    return [selectedCat, ...others]
+  }, [categoryList, nomineeForm.category])
+
+  // ─── TOGGLE CATEGORY EXPAND ─────────────────────────────────
+  const toggleCategory = (id: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }
+
+  const expandAll = () => {
+    setExpandedCategories(new Set(categoryList.map(c => c.id)))
+  }
+
+  const collapseAll = () => {
+    setExpandedCategories(new Set())
+  }
+
   // ─── PURGE FUNCTION ─────────────────────────────────────────
   const purgeCache = async () => {
     if (!purgeUrls.trim()) {
@@ -542,48 +604,11 @@ export default function AdminPage() {
     }
   };
 
-  // ─── GROUP NOMINEES BY CATEGORY ─────────────────────────────
-  const groupedNominees = useMemo(() => {
-    const grouped: Record<string, any[]> = {}
-    nominees.forEach(n => {
-      if (!grouped[n.category]) grouped[n.category] = []
-      grouped[n.category].push(n)
-    })
-    return grouped
-  }, [nominees])
-
-  // ─── SORT CATEGORIES WITH SELECTED AT TOP ──────────────────
-  const sortedCategories = useMemo(() => {
-    if (!nomineeForm.category || categoryList.length === 0) return categoryList
-    const selectedCat = categoryList.find(c => c.name === nomineeForm.category)
-    if (!selectedCat) return categoryList
-    const others = categoryList.filter(c => c.name !== nomineeForm.category)
-    return [selectedCat, ...others]
-  }, [categoryList, nomineeForm.category])
-
-  // ─── TOGGLE CATEGORY EXPAND ─────────────────────────────────
-  const toggleCategory = (id: string) => {
-    setExpandedCategories(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(id)) newSet.delete(id)
-      else newSet.add(id)
-      return newSet
-    })
-  }
-
-  const expandAll = () => {
-    setExpandedCategories(new Set(categoryList.map(c => c.id)))
-  }
-
-  const collapseAll = () => {
-    setExpandedCategories(new Set())
-  }
-
   // ─── RENDER ────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-        <div className="text-center">Loading...</div>
+        <FingerLoader />
       </div>
     )
   }
@@ -700,9 +725,11 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {dashboardLoading && <p className="text-gray-400">Loading dashboard data...</p>}
-
-            {dashboardData && (
+            {dashboardLoading ? (
+              <div className="flex justify-center py-12">
+                <FingerLoader />
+              </div>
+            ) : dashboardData ? (
               <>
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -837,9 +864,11 @@ export default function AdminPage() {
                   ))}
                 </div>
               </>
+            ) : (
+              <p className="text-gray-400">No dashboard data available.</p>
             )}
 
-            {/* Manual Cache Purge Section */}
+            {/* Manual Cache Purge */}
             <div className="mt-8 bg-slate-800/50 rounded-lg p-4 border border-white/5">
               <h3 className="font-bold mb-2 flex items-center gap-1">
                 <RefreshCw size={16} /> Manual Cache Purge
@@ -919,7 +948,7 @@ export default function AdminPage() {
                   />
                 </div>
 
-                {/* External Link Button Fields */}
+                {/* New fields for external button */}
                 <div className="border-t border-white/10 pt-4 mt-4">
                   <h3 className="text-lg font-semibold mb-3">External Link Button</h3>
                   <div>
@@ -941,6 +970,7 @@ export default function AdminPage() {
                       placeholder="e.g. Listen on YouTube"
                       className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white"
                     />
+                    <p className="text-xs text-gray-500 mt-1">If empty, no button will be shown.</p>
                   </div>
                   <div className="mt-3">
                     <label className="block text-sm text-gray-400 mb-1">Button Icon</label>
@@ -949,7 +979,9 @@ export default function AdminPage() {
                       onChange={(e) => setNomineeForm({ ...nomineeForm, button_icon: e.target.value })}
                       className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white"
                     >
-                      {buttonIconOptions.map(icon => <option key={icon} value={icon}>{icon}</option>)}
+                      {buttonIconOptions.map(icon => (
+                        <option key={icon} value={icon}>{icon}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -1082,42 +1114,48 @@ export default function AdminPage() {
                         </div>
                         {isExpanded && (
                           <div className="divide-y divide-white/5">
-                            {catNominees.map((n) => (
-                              <div key={n.id} className="flex items-center gap-3 bg-slate-900/50 p-4 hover:bg-slate-800/50 transition-colors">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedNominees.has(n.id)}
-                                  onChange={() => toggleSelectNominee(n.id)}
-                                  className="w-4 h-4"
-                                />
-                                <div className="flex-1">
-                                  <p className="font-medium">{n.title}</p>
-                                  {n.anime_name && <p className="text-sm text-gray-400">{n.anime_name}</p>}
-                                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                    <ThumbsUp size={12} /> Votes: {n.votes_public}
-                                  </p>
-                                  {n.external_url && n.button_label && (
-                                    <p className="text-xs text-blue-400 mt-1 flex items-center gap-1">
-                                      <span>{n.button_label}</span>
+                            {catNominees.map((n) => {
+                              // Determine which icon to show for the button preview
+                              const ButtonIcon = n.button_icon && buttonIconMap[n.button_icon] 
+                                ? buttonIconMap[n.button_icon] 
+                                : ExternalLink;
+                              return (
+                                <div key={n.id} className="flex items-center gap-3 bg-slate-900/50 p-4 hover:bg-slate-800/50 transition-colors">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedNominees.has(n.id)}
+                                    onChange={() => toggleSelectNominee(n.id)}
+                                    className="w-4 h-4"
+                                  />
+                                  <div className="flex-1">
+                                    <p className="font-medium">{n.title}</p>
+                                    {n.anime_name && <p className="text-sm text-gray-400">{n.anime_name}</p>}
+                                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                      <ThumbsUp size={12} /> Votes: {n.votes_public}
                                     </p>
-                                  )}
+                                    {n.external_url && n.button_label && (
+                                      <p className="text-xs text-blue-400 mt-1 flex items-center gap-1">
+                                        <ButtonIcon size={10} /> {n.button_label}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2 ml-4">
+                                    <button
+                                      onClick={() => editNominee(n)}
+                                      className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-500/30 hover:border-blue-500/50 flex items-center gap-1"
+                                    >
+                                      <Pencil size={12} /> Edit
+                                    </button>
+                                    <button
+                                      onClick={() => deleteNominee(n.id)}
+                                      className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-500/30 hover:border-red-500/50 flex items-center gap-1"
+                                    >
+                                      <Trash2 size={12} /> Delete
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="flex gap-2 ml-4">
-                                  <button
-                                    onClick={() => editNominee(n)}
-                                    className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-500/30 hover:border-blue-500/50 flex items-center gap-1"
-                                  >
-                                    <Pencil size={12} /> Edit
-                                  </button>
-                                  <button
-                                    onClick={() => deleteNominee(n.id)}
-                                    className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-500/30 hover:border-red-500/50 flex items-center gap-1"
-                                  >
-                                    <Trash2 size={12} /> Delete
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         )}
                       </div>
@@ -1261,8 +1299,6 @@ export default function AdminPage() {
                           )}
                         </div>
                       </div>
-
-                      {/* Buttons Row */}
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
                         <div className="flex gap-1">
                           <button
@@ -1340,4 +1376,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-                                        }
+         }
