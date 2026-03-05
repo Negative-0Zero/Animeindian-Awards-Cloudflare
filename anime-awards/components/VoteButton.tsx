@@ -52,6 +52,7 @@ export default function VoteButton({
                 .select('id')
                 .eq('user_id', currentUser.id) // ✅ uses the captured variable – no error
                 .eq('category', category)
+                .eq('is_jury', false)
                 .maybeSingle()
             setVoted(!!data)
         }
