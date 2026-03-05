@@ -42,17 +42,17 @@ export default function VoteButton({
         }
     }, [user, pendingVote])
 
-    // ✅ DEFINITIVE FIX – capture user in a local variable
+    // Check if user already voted in this category (public vote)
     useEffect(() => {
         if (!user || isHero) return
-        const currentUser = user // TypeScript now knows this is User, not null
+        const currentUser = user
         async function checkVote() {
             const { data } = await supabase
                 .from('votes')
                 .select('id')
-                .eq('user_id', currentUser.id) // ✅ uses the captured variable – no error
+                .eq('user_id', currentUser.id)
                 .eq('category', category)
-                .eq('is_jury', false)
+                .eq('is_jury', false)  // only check public votes
                 .maybeSingle()
             setVoted(!!data)
         }
@@ -69,7 +69,7 @@ export default function VoteButton({
                     loginSection.classList.add('ring-4', 'ring-yellow-400', 'rounded-lg')
                     setTimeout(() => loginSection.classList.remove('ring-4', 'ring-yellow-400'), 2000)
                 }
-                alert('🔐 Please log in first – you\'ll be taken to the categories after login.')
+                alert(' Please log in first – you\'ll be taken to the categories after login.')
                 return
             } else {
                 const categoriesSection = document.getElementById('categories-section')
@@ -90,12 +90,12 @@ export default function VoteButton({
                 loginSection.classList.add('ring-4', 'ring-yellow-400', 'rounded-lg')
                 setTimeout(() => loginSection.classList.remove('ring-4', 'ring-yellow-400'), 2000)
             }
-            alert('🔐 Please log in first – you\'ll be taken back to vote after login.')
+            alert(' Please log in first – you\'ll be taken back to vote after login.')
             return
         }
 
         if (voted) {
-            alert('⚠️ You already voted in this category!')
+            alert(' You already voted in this category!')
             return
         }
 
@@ -112,7 +112,7 @@ export default function VoteButton({
 
         if (voteError) {
             if (voteError.code === '23505') {
-                alert('⚠️ You already voted in this category!')
+                alert(' You already voted in this category!')
                 setVoted(true)
             } else {
                 alert('Error: ' + voteError.message)
@@ -121,15 +121,12 @@ export default function VoteButton({
             return
         }
 
-        const { error: rpcError } = await supabase
-            .rpc('increment_votes', { nominee_id: nomineeId, is_jury: false })
+        // No need to call RPC – the database trigger will update votes_public automatically
 
         setLoading(false)
-        if (rpcError) console.error('Vote count increment failed:', rpcError)
-
         setVoted(true)
         onVoteSuccess?.()
-        alert('✅ Vote counted! 🎉')
+        alert(' Vote counted! ')
     }
 
     return (
