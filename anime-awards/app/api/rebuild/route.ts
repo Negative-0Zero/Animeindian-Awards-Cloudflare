@@ -23,15 +23,14 @@ export async function POST(request: Request) {
     // 2. Call Cloudflare Pages rebuild webhook
     const webhookUrl = 'https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/61bea573-fe05-49ed-89c5-512fc8fb7a60';
     
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-    });
+    const response = await fetch(webhookUrl, { method: 'POST' });
 
     if (!response.ok) {
       const text = await response.text();
-      return NextResponse.json({ error: text }, { status: response.status });
+      return NextResponse.json({ error: `Rebuild failed: ${text}` }, { status: response.status });
     }
 
+    // Even if response is empty, return success JSON
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('Rebuild API error:', err);
