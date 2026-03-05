@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Login from '@/components/Login'
-import FingerLoader from '@/components/FingerLoader' 
 import {
   Trophy, Calendar, Star, Flame, Heart, Zap,
   Clapperboard, Mic, Tv, ArrowRight,
@@ -15,19 +14,11 @@ import {
   Pencil, Plus, Trash2, ArrowLeft, ArrowUp, ArrowDown,
   Check, Search, RefreshCw, Save, Lock, Ban, TrendingUp,
   ChevronsUpDown, ChevronsDownUp,
-  Tag, ExternalLink, Music2, Play, Headphones, Podcast,
+  Tag,
 } from "lucide-react"
 
-// Map for button icons
-const buttonIconMap: Record<string, React.ElementType> = {
-  ExternalLink,
-  Music2,
-  Play,
-  Film,
-  Radio,
-  Headphones,
-  Podcast
-};
+// Your Cloudflare Worker URL – replace with your actual worker domain
+const WORKER_URL = 'https://animeawards-api-cache.negativezero338.workers.dev';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null)
@@ -91,12 +82,16 @@ export default function AdminPage() {
   // ----- Rebuild Debounce -----
   let rebuildTimeout: NodeJS.Timeout;
 
+  // ----- Purge State -----
+  const [purgeUrls, setPurgeUrls] = useState('')
+  const [purging, setPurging] = useState(false)
+
   // Available icons for nominee buttons
   const buttonIconOptions = [
     'ExternalLink', 'Music2', 'Play', 'Film', 'Radio', 'Headphones', 'Podcast'
   ];
 
-  // Available icons for categories (unchanged)
+  // Available icons for categories
   const iconOptions = [
     'Trophy', 'Clapperboard', 'Mic', 'Flame', 'Zap', 'Heart', 'Tv', 'Star',
     'Sword', 'Crown', 'Award', 'Medal', 'Sparkles', 'Camera', 'Film',
@@ -104,7 +99,7 @@ export default function AdminPage() {
     'Smile', 'ThumbsUp', 'Flag', 'Gift', 'Globe', 'Leaf', 'Diamond'
   ]
 
-  // ─── AUTH CHECK + REACTIVE LISTENER ──────────────────────────
+  // ─── AUTH CHECK ─────────────────────────────────────────────
   async function checkUser() {
     const { data: { user } } = await supabase.auth.getUser()
     setUser(user)
@@ -136,63 +131,102 @@ export default function AdminPage() {
     return () => listener?.subscription.unsubscribe()
   }, [])
 
-  // ─── DATA FETCHING ──────────────────────────────────────────
-  useEffect(() => {
-    if (!user || !isAdmin) return
-    fetchNominees()
-    fetchCategories()
-    fetchRulesContent()
-    fetchSettings()
-    if (activeTab === 'dashboard') fetchDashboardData()
-  }, [user, isAdmin, activeTab])
-
-  // Initialize expanded categories whenever categoryList changes
-  useEffect(() => {
-    if (categoryList.length > 0) {
-      setExpandedCategories(new Set(categoryList.map(c => c.id)))
-    }
-  }, [categoryList])
+  // ─── DATA FETCHING (via Worker with X-Admin header) ─────────
+  async function fetchWithAdmin(path: string) {
+    const res = await fetch(`${WORKER_URL}${path}`, {
+      headers: {
+        'X-Admin': 'true',
+        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
 
   async function fetchNominees() {
-    const { data } = await supabase
-      .from('nominees')
-      .select('*')
-      .order('created_at', { ascending: false })
-    setNominees(data || [])
-    setSelectedNominees(new Set())
+    try {
+      const data = await fetchWithAdmin('/nominees?select=*&order=created_at.desc');
+      setNominees(data || []);
+      setSelectedNominees(new Set());
+    } catch (err) {
+      console.error('Error fetching nominees:', err);
+    }
   }
 
   async function fetchCategories() {
-    const { data } = await supabase
-      .from('categories')
-      .select('*')
-      .order('display_order', { ascending: true })
-      .order('name', { ascending: true })
-    setCategoryList(data || [])
-    if (data) {
-      setCategories(data.map(c => c.name))
-      if (data.length > 0 && !nomineeForm.category) {
-        setNomineeForm(prev => ({ ...prev, category: data[0].name }))
+    try {
+      const data = await fetchWithAdmin('/categories?select=*&order=display_order.asc&order=name.asc');
+      setCategoryList(data || []);
+      if (data) {
+        setCategories(data.map((c: any) => c.name));
+        if (data.length > 0 && !nomineeForm.category) {
+          setNomineeForm(prev => ({ ...prev, category: data[0].name }));
+        }
       }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
     }
   }
 
   async function fetchRulesContent() {
-    const { data } = await supabase
-      .from('site_content')
-      .select('content')
-      .eq('key', 'rules')
-      .single()
-    if (data) setRulesContent(data.content)
+    try {
+      const data = await fetchWithAdmin('/site_content?select=content&key=eq.rules');
+      if (data && data[0]) setRulesContent(data[0].content);
+    } catch (err) {
+      console.error('Error fetching rules:', err);
+    }
   }
 
   async function fetchSettings() {
-    const { data } = await supabase
-      .from('site_content')
-      .select('content')
-      .eq('key', 'show_results')
-      .single()
-    if (data) setShowResults(data.content)
+    try {
+      const data = await fetchWithAdmin('/site_content?select=content&key=eq.show_results');
+      if (data && data[0]) setShowResults(data[0].content);
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+    }
+  }
+
+  async function fetchDashboardData() {
+    setDashboardLoading(true)
+    try {
+      const data = await fetchWithAdmin('/nominees?select=category,title,votes_public');
+      // --- aggregation logic (unchanged) ---
+      const nomineesData = data || [];
+      const { count: totalCategories } = await supabase
+        .from('categories')
+        .select('*', { count: 'exact', head: true });
+      const totalVotes = nomineesData.reduce((sum: number, n: any) => sum + (n.votes_public || 0), 0);
+      const totalNominees = nomineesData.length;
+
+      const grouped = nomineesData.reduce((acc: any, n: any) => {
+        if (!acc[n.category]) acc[n.category] = { totalVotes: 0, nominees: [] };
+        acc[n.category].totalVotes += n.votes_public || 0;
+        acc[n.category].nominees.push(n);
+        return acc;
+      }, {});
+
+      const categoryStats = Object.entries(grouped)
+        .map(([category, data]: [string, any]) => ({
+          category,
+          totalVotes: data.totalVotes,
+          nominees: data.nominees.sort((a: any, b: any) => (b.votes_public || 0) - (a.votes_public || 0))
+        }))
+        .sort((a, b) => b.totalVotes - a.totalVotes);
+
+      setDashboardData({
+        totalVotes,
+        totalNominees,
+        totalCategories: totalCategories || 0,
+        categoryStats
+      });
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      alert('Failed to load dashboard data.');
+    } finally {
+      setDashboardLoading(false);
+    }
   }
 
   async function saveRulesContent() {
@@ -202,61 +236,12 @@ export default function AdminPage() {
       .from('site_content')
       .update({ content: rulesContent, updated_at: new Date().toISOString() })
       .eq('key', 'rules')
-
     if (error) {
       setContentMessage('Error: ' + error.message)
     } else {
       setContentMessage('Success: Rules page updated!')
     }
     setSavingContent(false)
-  }
-
-  // ─── DASHBOARD DATA ─────────────────────────────────────────
-  async function fetchDashboardData() {
-    setDashboardLoading(true)
-    try {
-      const { data: nomineesData, error: nomError } = await supabase
-        .from('nominees')
-        .select('category, title, votes_public')
-
-      if (nomError) throw nomError
-
-      const { count: totalCategories, error: catCountError } = await supabase
-        .from('categories')
-        .select('*', { count: 'exact', head: true })
-
-      if (catCountError) throw catCountError
-
-      const totalVotes = nomineesData?.reduce((sum, n) => sum + (n.votes_public || 0), 0) || 0
-      const totalNominees = nomineesData?.length || 0
-
-      const grouped = (nomineesData || []).reduce((acc, n) => {
-        if (!acc[n.category]) acc[n.category] = { totalVotes: 0, nominees: [] }
-        acc[n.category].totalVotes += n.votes_public || 0
-        acc[n.category].nominees.push(n)
-        return acc
-      }, {} as Record<string, { totalVotes: number; nominees: any[] }>)
-
-      const categoryStats = Object.entries(grouped)
-        .map(([category, data]) => ({
-          category,
-          totalVotes: data.totalVotes,
-          nominees: data.nominees.sort((a, b) => (b.votes_public || 0) - (a.votes_public || 0))
-        }))
-        .sort((a, b) => b.totalVotes - a.totalVotes)
-
-      setDashboardData({
-        totalVotes,
-        totalNominees,
-        totalCategories: totalCategories || 0,
-        categoryStats
-      })
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err)
-      alert('Failed to load dashboard data.')
-    } finally {
-      setDashboardLoading(false)
-    }
   }
 
   // ─── BULK ACTIONS ───────────────────────────────────────────
@@ -526,6 +511,37 @@ export default function AdminPage() {
     setReordering(false)
   }
 
+  // ─── PURGE FUNCTION ─────────────────────────────────────────
+  const purgeCache = async () => {
+    if (!purgeUrls.trim()) {
+      alert('Please enter URLs to purge (one per line)');
+      return;
+    }
+    const urls = purgeUrls.split('\n').map(u => u.trim()).filter(u => u);
+    setPurging(true);
+    try {
+      const res = await fetch(`${WORKER_URL}/purge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_PURGE_SECRET}`,
+        },
+        body: JSON.stringify({ urls }),
+      });
+      if (res.ok) {
+        alert('✅ Cache purged successfully!');
+        setPurgeUrls('');
+      } else {
+        const text = await res.text();
+        alert('❌ Purge failed: ' + text);
+      }
+    } catch (err: any) {
+      alert('❌ Error: ' + err.message);
+    } finally {
+      setPurging(false);
+    }
+  };
+
   // ─── GROUP NOMINEES BY CATEGORY ─────────────────────────────
   const groupedNominees = useMemo(() => {
     const grouped: Record<string, any[]> = {}
@@ -549,11 +565,8 @@ export default function AdminPage() {
   const toggleCategory = (id: string) => {
     setExpandedCategories(prev => {
       const newSet = new Set(prev)
-      if (newSet.has(id)) {
-        newSet.delete(id)
-      } else {
-        newSet.add(id)
-      }
+      if (newSet.has(id)) newSet.delete(id)
+      else newSet.add(id)
       return newSet
     })
   }
@@ -570,7 +583,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-        <FingerLoader />
+        <div className="text-center">Loading...</div>
       </div>
     )
   }
@@ -687,11 +700,9 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {dashboardLoading ? (
-              <div className="flex justify-center py-12">
-                <FingerLoader />
-              </div>
-            ) : dashboardData ? (
+            {dashboardLoading && <p className="text-gray-400">Loading dashboard data...</p>}
+
+            {dashboardData && (
               <>
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -826,9 +837,31 @@ export default function AdminPage() {
                   ))}
                 </div>
               </>
-            ) : (
-              <p className="text-gray-400">No dashboard data available.</p>
             )}
+
+            {/* Manual Cache Purge Section */}
+            <div className="mt-8 bg-slate-800/50 rounded-lg p-4 border border-white/5">
+              <h3 className="font-bold mb-2 flex items-center gap-1">
+                <RefreshCw size={16} /> Manual Cache Purge
+              </h3>
+              <p className="text-sm text-gray-400 mb-3">
+                After updating nominees or categories, enter the exact URLs that need purging (one per line) and click Purge.
+              </p>
+              <textarea
+                value={purgeUrls}
+                onChange={(e) => setPurgeUrls(e.target.value)}
+                placeholder="https://your-worker.workers.dev/nominees?select=*&category=eq.Anime%20of%20the%20Season&#10;https://your-worker.workers.dev/categories?select=*"
+                rows={3}
+                className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white text-sm mb-3"
+              />
+              <button
+                onClick={purgeCache}
+                disabled={purging}
+                className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-full text-sm transition flex items-center gap-1"
+              >
+                {purging ? 'Purging...' : '🚀 Purge Now'}
+              </button>
+            </div>
           </div>
         )}
 
@@ -886,7 +919,7 @@ export default function AdminPage() {
                   />
                 </div>
 
-                {/* New fields for external button */}
+                {/* External Link Button Fields */}
                 <div className="border-t border-white/10 pt-4 mt-4">
                   <h3 className="text-lg font-semibold mb-3">External Link Button</h3>
                   <div>
@@ -908,7 +941,6 @@ export default function AdminPage() {
                       placeholder="e.g. Listen on YouTube"
                       className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white"
                     />
-                    <p className="text-xs text-gray-500 mt-1">If empty, no button will be shown.</p>
                   </div>
                   <div className="mt-3">
                     <label className="block text-sm text-gray-400 mb-1">Button Icon</label>
@@ -917,9 +949,7 @@ export default function AdminPage() {
                       onChange={(e) => setNomineeForm({ ...nomineeForm, button_icon: e.target.value })}
                       className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white"
                     >
-                      {buttonIconOptions.map(icon => (
-                        <option key={icon} value={icon}>{icon}</option>
-                      ))}
+                      {buttonIconOptions.map(icon => <option key={icon} value={icon}>{icon}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1052,48 +1082,42 @@ export default function AdminPage() {
                         </div>
                         {isExpanded && (
                           <div className="divide-y divide-white/5">
-                            {catNominees.map((n) => {
-                              // Determine which icon to show for the button preview
-                              const ButtonIcon = n.button_icon && buttonIconMap[n.button_icon] 
-                                ? buttonIconMap[n.button_icon] 
-                                : ExternalLink;
-                              return (
-                                <div key={n.id} className="flex items-center gap-3 bg-slate-900/50 p-4 hover:bg-slate-800/50 transition-colors">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedNominees.has(n.id)}
-                                    onChange={() => toggleSelectNominee(n.id)}
-                                    className="w-4 h-4"
-                                  />
-                                  <div className="flex-1">
-                                    <p className="font-medium">{n.title}</p>
-                                    {n.anime_name && <p className="text-sm text-gray-400">{n.anime_name}</p>}
-                                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                      <ThumbsUp size={12} /> Votes: {n.votes_public}
+                            {catNominees.map((n) => (
+                              <div key={n.id} className="flex items-center gap-3 bg-slate-900/50 p-4 hover:bg-slate-800/50 transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedNominees.has(n.id)}
+                                  onChange={() => toggleSelectNominee(n.id)}
+                                  className="w-4 h-4"
+                                />
+                                <div className="flex-1">
+                                  <p className="font-medium">{n.title}</p>
+                                  {n.anime_name && <p className="text-sm text-gray-400">{n.anime_name}</p>}
+                                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                    <ThumbsUp size={12} /> Votes: {n.votes_public}
+                                  </p>
+                                  {n.external_url && n.button_label && (
+                                    <p className="text-xs text-blue-400 mt-1 flex items-center gap-1">
+                                      <span>{n.button_label}</span>
                                     </p>
-                                    {n.external_url && n.button_label && (
-                                      <p className="text-xs text-blue-400 mt-1 flex items-center gap-1">
-                                        <ButtonIcon size={10} /> {n.button_label}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="flex gap-2 ml-4">
-                                    <button
-                                      onClick={() => editNominee(n)}
-                                      className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-500/30 hover:border-blue-500/50 flex items-center gap-1"
-                                    >
-                                      <Pencil size={12} /> Edit
-                                    </button>
-                                    <button
-                                      onClick={() => deleteNominee(n.id)}
-                                      className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-500/30 hover:border-red-500/50 flex items-center gap-1"
-                                    >
-                                      <Trash2 size={12} /> Delete
-                                    </button>
-                                  </div>
+                                  )}
                                 </div>
-                              )
-                            })}
+                                <div className="flex gap-2 ml-4">
+                                  <button
+                                    onClick={() => editNominee(n)}
+                                    className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-500/30 hover:border-blue-500/50 flex items-center gap-1"
+                                  >
+                                    <Pencil size={12} /> Edit
+                                  </button>
+                                  <button
+                                    onClick={() => deleteNominee(n.id)}
+                                    className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-500/30 hover:border-red-500/50 flex items-center gap-1"
+                                  >
+                                    <Trash2 size={12} /> Delete
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -1237,6 +1261,8 @@ export default function AdminPage() {
                           )}
                         </div>
                       </div>
+
+                      {/* Buttons Row */}
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
                         <div className="flex gap-1">
                           <button
@@ -1314,4 +1340,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-                             }
+                                        }
