@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { supabase } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Login from '@/components/Login'
@@ -61,6 +61,11 @@ export default function AdminPage() {
 
   // ----- Categories State -----
   const [categoryList, setCategoryList] = useState<any[]>([])
+  const categoryListRef = useRef<any[]>([]);
+  useEffect(() => {
+    categoryListRef.current = categoryList;
+  }, [categoryList]);
+
   const [categoryForm, setCategoryForm] = useState({
     name: '',
     slug: '',
@@ -134,36 +139,37 @@ export default function AdminPage() {
     }
   };
 
-  // ─── HELPER: GENERATE URLS TO PURGE BASED ON CHANGE ──────────
-  const getUrlsToPurge = (type: 'category' | 'nominee' | 'all', categoryName?: string): string[] => {
-    const base = WORKER_URL.replace(/\/$/, '');
-    const urls: string[] = [];
-
-    // Always purge category list (used on homepage and navigation)
-    urls.push(`${base}/categories?select=*&order=display_order.asc`);
-    urls.push(`${base}/categories?select=slug,name,display_order&order=display_order.asc`);
-
-    // If a specific category is involved, purge its nominee list
-    if (categoryName) {
-      urls.push(`${base}/nominees?select=*&category=eq.${encodeURIComponent(categoryName)}&order=created_at.asc`);
-    }
-
-    // If it's a nominee change (without category specified) or 'all', purge all nominee lists
-    if (type === 'nominee' || type === 'all') {
-      urls.push(`${base}/nominees?select=*&order=created_at.asc`);
-    }
-
-    // Remove duplicates
-    return [...new Set(urls)];
-  };
-
-  // ─── DEBOUNCED PURGE ─────────────────────────────────────────
-  const debouncedPurge = (type: 'category' | 'nominee' | 'all', categoryName?: string) => {
+  // ─── DEBOUNCED PURGE (now with all category nominee lists) ───
+  const debouncedPurge = (type: 'category' | 'nominee' | 'all', specificCategory?: string) => {
     clearTimeout(purgeTimeout);
     purgeTimeout = setTimeout(() => {
-      const urls = getUrlsToPurge(type, categoryName);
-      purgeUrlsList(urls);
-    }, 2000); // Wait 2 seconds after last change before purging
+      const base = WORKER_URL.replace(/\/$/, '');
+      const urls = new Set<string>();
+
+      // Always purge category lists (used on homepage and navigation)
+      urls.add(`${base}/categories?select=*&order=display_order.asc`);
+      urls.add(`${base}/categories?select=slug,name,display_order&order=display_order.asc`);
+
+      // If a specific category is involved, purge its nominee list
+      if (specificCategory) {
+        urls.add(`${base}/nominees?select=*&category=eq.${encodeURIComponent(specificCategory)}&order=created_at.asc`);
+      }
+
+      // If type is 'nominee' or 'all', also purge the general nominee list (used by homepage)
+      if (type === 'nominee' || type === 'all') {
+        urls.add(`${base}/nominees?select=*&order=created_at.asc`);
+      }
+
+      // If type is 'category' or 'all', purge nominee lists for ALL categories
+      // This ensures any category page cache is cleared after any change.
+      if (type === 'category' || type === 'all') {
+        categoryListRef.current.forEach(cat => {
+          urls.add(`${base}/nominees?select=*&category=eq.${encodeURIComponent(cat.name)}&order=created_at.asc`);
+        });
+      }
+
+      purgeUrlsList(Array.from(urls));
+    }, 2000);
   };
 
   // ─── AUTH CHECK + REACTIVE LISTENER ──────────────────────────
@@ -385,7 +391,7 @@ export default function AdminPage() {
       } else {
         alert(`Success: Moved ${selectedNominees.size} nominee(s) to "${targetCategory}".`)
         fetchNominees()
-        debouncedPurge('nominee'); // Purge cache
+        debouncedPurge('nominee'); // Purge cache (will now also purge all category nominee lists)
         setTargetCategory('')
       }
       setBulkProcessing(false)
@@ -656,7 +662,7 @@ export default function AdminPage() {
     }
   };
 
-  // ─── REBUILD FUNCTION ───────────────────────────────────────
+  // ─── REBUILD FUNCTION (SAFER) ───────────────────────────────
   const triggerRebuild = async () => {
     setRebuilding(true);
     try {
@@ -664,11 +670,17 @@ export default function AdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
-      const data = await res.json();
+      let data;
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        data = { error: await res.text() };
+      }
       if (res.ok) {
         alert('Rebuild triggered successfully! The site will update in a few minutes.');
       } else {
-        alert('Rebuild failed: ' + data.error);
+        alert('Rebuild failed: ' + (data.error || 'Unknown error'));
       }
     } catch (err: any) {
       alert('Error: ' + err.message);
@@ -1493,4 +1505,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-                          }
+         }
