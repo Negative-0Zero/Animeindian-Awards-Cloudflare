@@ -184,22 +184,32 @@ export default function AdminPage() {
     }
   }
 
+  // Added error handling
   async function fetchRulesContent() {
-    const { data } = await supabase
-      .from('site_content')
-      .select('content')
-      .eq('key', 'rules')
-      .single()
-    if (data) setRulesContent(data.content)
+    try {
+      const { data } = await supabase
+        .from('site_content')
+        .select('content')
+        .eq('key', 'rules')
+        .single()
+      if (data) setRulesContent(data.content)
+    } catch (err) {
+      console.error('Error fetching rules content:', err)
+    }
   }
 
+  // Added error handling
   async function fetchSettings() {
-    const { data } = await supabase
-      .from('site_content')
-      .select('content')
-      .eq('key', 'show_results')
-      .single()
-    if (data) setShowResults(data.content)
+    try {
+      const { data } = await supabase
+        .from('site_content')
+        .select('content')
+        .eq('key', 'show_results')
+        .single()
+      if (data) setShowResults(data.content)
+    } catch (err) {
+      console.error('Error fetching settings:', err)
+    }
   }
 
   async function saveRulesContent() {
@@ -412,16 +422,18 @@ export default function AdminPage() {
     if (!error) fetchNominees()
   }
 
-  // ─── CLOUDFLARE REBUILD HOOK ────────────────────────────────
+  // ─── CLOUDFLARE REBUILD HOOK (UPDATED to use API route) ─────
   const triggerRebuild = async () => {
     try {
-      const response = await fetch('https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/61bea573-fe05-49ed-89c5-512fc8fb7a60', {
+      const res = await fetch('/api/rebuild', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       });
-      if (response.ok) {
+      const data = await res.json();
+      if (res.ok) {
         console.log('Rebuild triggered successfully');
       } else {
-        console.error('Rebuild trigger failed', await response.text());
+        console.error('Rebuild trigger failed:', data.error);
       }
     } catch (error) {
       console.error('Error triggering rebuild:', error);
@@ -808,6 +820,33 @@ export default function AdminPage() {
                   </button>
                 </div>
 
+                {/* Reconcile Votes - NEW */}
+                <div className="bg-slate-800/50 rounded-lg p-4 border border-white/5 mb-8">
+                  <h3 className="font-bold mb-2 flex items-center gap-1">
+                    <RefreshCw size={16} /> Reconcile Vote Counts
+                  </h3>
+                  <p className="text-sm text-gray-400 mb-4">
+                    This will sync the votes_public column with the actual votes in the votes table.
+                    Use this if you suspect counts are out of sync.
+                  </p>
+                  <button
+                    onClick={async () => {
+                      if (!confirm('This will update all nominee vote counts based on the votes table. Continue?')) return
+                      try {
+                        const { error } = await supabase.rpc('reconcile_votes')
+                        if (error) throw error
+                        alert('Vote counts reconciled successfully!')
+                        fetchDashboardData() // refresh dashboard data
+                      } catch (err: any) {
+                        alert('Error: ' + err.message)
+                      }
+                    }}
+                    className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold px-6 py-3 rounded-full hover:scale-105 transition flex items-center gap-1"
+                  >
+                    <RefreshCw size={16} /> Reconcile Votes
+                  </button>
+                </div>
+
                 {/* Preview Winners */}
                 <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
                   <Trophy size={20} /> Preview Current Top 3
@@ -865,7 +904,7 @@ export default function AdminPage() {
               <p className="text-gray-400">No dashboard data available.</p>
             )}
 
-            {/* Manual Cache Purge - UPDATED */}
+            {/* Manual Cache Purge */}
             <div className="mt-8 bg-slate-800/50 rounded-lg p-4 border border-white/5">
               <h3 className="font-bold mb-2 flex items-center gap-1">
                 <RefreshCw size={16} /> Manual Cache Purge
