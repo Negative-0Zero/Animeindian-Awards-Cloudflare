@@ -3,7 +3,7 @@ import { supabaseServer } from '@/utils/supabase/server';
 
 export async function POST(request: Request) {
   try {
-    // Verify authentication and admin status
+    console.log('Rebuild API route called');
     const supabase = await supabaseServer();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -20,9 +20,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Call Cloudflare Pages rebuild webhook
     const webhookUrl = 'https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/61bea573-fe05-49ed-89c5-512fc8fb7a60';
-    
     const response = await fetch(webhookUrl, { method: 'POST' });
 
     let data;
@@ -42,4 +40,8 @@ export async function POST(request: Request) {
     console.error('Rebuild API error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ message: 'Rebuild API endpoint (POST only)' }, { status: 405 });
 }
