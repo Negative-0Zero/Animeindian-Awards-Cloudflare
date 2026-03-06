@@ -25,15 +25,23 @@ export async function POST(request: Request) {
     
     const response = await fetch(webhookUrl, { method: 'POST' });
 
-    if (!response.ok) {
+    // Always return JSON, even if the response is empty or not JSON
+    let data;
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
       const text = await response.text();
-      return NextResponse.json({ error: `Rebuild failed: ${text}` }, { status: response.status });
+      data = { message: text || 'No response body' };
     }
 
-    // Even if response is empty, return success JSON
-    return NextResponse.json({ success: true });
+    if (!response.ok) {
+      return NextResponse.json({ error: data.message || 'Rebuild failed' }, { status: response.status });
+    }
+
+    return NextResponse.json({ success: true, data });
   } catch (err: any) {
     console.error('Rebuild API error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-}
+      }
