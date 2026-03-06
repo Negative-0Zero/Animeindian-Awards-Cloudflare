@@ -128,12 +128,12 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ urls }),
       });
+      const responseText = await res.text();
       let data;
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await res.json();
-      } else {
-        data = { error: await res.text() };
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data = { error: responseText || 'No response body' };
       }
       if (res.ok) {
         console.log('Purged URLs:', urls);
@@ -640,7 +640,7 @@ export default function AdminPage() {
     setExpandedCategories(new Set())
   }
 
-  // ─── PURGE FUNCTION (MANUAL) with improved error handling ───
+  // ─── PURGE FUNCTION (MANUAL) with better error display ──────
   const purgeCache = async () => {
     if (!purgeUrls.trim()) {
       alert('Please enter URLs to purge (one per line)');
@@ -654,13 +654,15 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ urls }),
       });
+      
+      const responseText = await res.text();
       let data;
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await res.json();
-      } else {
-        data = { error: await res.text() };
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data = { error: responseText || 'No response body' };
       }
+
       if (res.ok) {
         alert('Cache purged successfully!');
         setPurgeUrls('');
@@ -674,7 +676,7 @@ export default function AdminPage() {
     }
   };
 
-  // ─── REBUILD FUNCTION with improved error handling ──────────
+  // ─── REBUILD FUNCTION with better error display ─────────────
   const triggerRebuild = async () => {
     setRebuilding(true);
     try {
@@ -682,13 +684,15 @@ export default function AdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
+      
+      const responseText = await res.text();
       let data;
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await res.json();
-      } else {
-        data = { error: await res.text() };
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data = { error: responseText || 'No response body' };
       }
+
       if (res.ok) {
         alert('Rebuild triggered successfully! The site will update in a few minutes.');
       } else {
@@ -1543,4 +1547,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-         }
+          }
