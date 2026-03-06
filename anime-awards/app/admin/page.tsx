@@ -640,7 +640,7 @@ export default function AdminPage() {
     setExpandedCategories(new Set())
   }
 
-  // ─── PURGE FUNCTION (MANUAL) ────────────────────────────────
+  // ─── PURGE FUNCTION (MANUAL) with improved error handling ───
   const purgeCache = async () => {
     if (!purgeUrls.trim()) {
       alert('Please enter URLs to purge (one per line)');
@@ -665,7 +665,7 @@ export default function AdminPage() {
         alert('Cache purged successfully!');
         setPurgeUrls('');
       } else {
-        alert('Purge failed: ' + (data.error || 'Unknown error'));
+        alert(`Purge failed (${res.status}): ${data.error || 'Unknown error'}`);
       }
     } catch (err: any) {
       alert('Error: ' + err.message);
@@ -674,7 +674,7 @@ export default function AdminPage() {
     }
   };
 
-  // ─── REBUILD FUNCTION (SAFER) ───────────────────────────────
+  // ─── REBUILD FUNCTION with improved error handling ──────────
   const triggerRebuild = async () => {
     setRebuilding(true);
     try {
@@ -692,7 +692,7 @@ export default function AdminPage() {
       if (res.ok) {
         alert('Rebuild triggered successfully! The site will update in a few minutes.');
       } else {
-        alert('Rebuild failed: ' + (data.error || 'Unknown error'));
+        alert(`Rebuild failed (${res.status}): ${data.error || 'Unknown error'}`);
       }
     } catch (err: any) {
       alert('Error: ' + err.message);
@@ -1002,7 +1002,7 @@ export default function AdminPage() {
               </p>
 
               {/* Category Dropdown */}
-              <div className="flex flex-wrap gap-2 mb-3">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
                 <select
                   onChange={(e) => {
                     if (!e.target.value) return;
@@ -1010,7 +1010,7 @@ export default function AdminPage() {
                     setPurgeUrls(prev => prev + (prev ? '\n' : '') + url);
                     e.target.value = ''; // reset select
                   }}
-                  className="bg-slate-700 text-white px-3 py-2 rounded border border-white/10 text-sm flex-1"
+                  className="bg-slate-700 text-white px-3 py-2 rounded border border-white/10 text-sm flex-1 min-w-0 max-w-full"
                   defaultValue=""
                 >
                   <option value="" disabled>Select a category to add its nominee list URL</option>
@@ -1020,7 +1020,7 @@ export default function AdminPage() {
                 </select>
                 <button
                   onClick={() => setPurgeUrls('')}
-                  className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-sm"
+                  className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-sm whitespace-nowrap"
                 >
                   Clear
                 </button>
@@ -1543,4 +1543,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-    }
+         }
