@@ -3,6 +3,7 @@ import { supabaseServer } from '@/utils/supabase/server';
 
 export async function POST(request: Request) {
   try {
+    // Verify authentication and admin status
     const supabase = await supabaseServer();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -19,7 +20,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Call Cloudflare Pages rebuild webhook
     const webhookUrl = 'https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/61bea573-fe05-49ed-89c5-512fc8fb7a60';
+    
     const response = await fetch(webhookUrl, { method: 'POST' });
 
     let data;
@@ -27,12 +30,11 @@ export async function POST(request: Request) {
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
     } else {
-      const text = await response.text();
-      data = { message: text || 'No response body' };
+      data = { error: await response.text() };
     }
 
     if (!response.ok) {
-      return NextResponse.json({ error: data.message || 'Rebuild failed' }, { status: response.status });
+      return NextResponse.json({ error: data.error || 'Rebuild failed' }, { status: response.status });
     }
 
     return NextResponse.json({ success: true, data });
