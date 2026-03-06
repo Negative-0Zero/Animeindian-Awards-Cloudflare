@@ -3,7 +3,7 @@ import { supabaseServer } from '@/utils/supabase/server';
 
 export async function POST(request: Request) {
   try {
-    // Verify authentication and admin status
+    console.log('Purge API route called');
     const supabase = await supabaseServer();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -20,13 +20,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Parse request body
     const { urls } = await request.json();
     if (!Array.isArray(urls) || urls.length === 0) {
       return NextResponse.json({ error: 'Invalid URLs' }, { status: 400 });
     }
 
-    // Call worker purge endpoint
     const workerUrl = process.env.WORKER_URL;
     const purgeSecret = process.env.PURGE_SECRET;
 
@@ -56,4 +54,8 @@ export async function POST(request: Request) {
     console.error('Purge API error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ message: 'Purge API endpoint (POST only)' }, { status: 405 });
 }
