@@ -128,10 +128,16 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ urls }),
       });
+      let data;
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        data = { error: await res.text() };
+      }
       if (res.ok) {
         console.log('Purged URLs:', urls);
       } else {
-        const data = await res.json();
         console.error('Purge failed:', data.error);
       }
     } catch (err) {
@@ -648,12 +654,18 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ urls }),
       });
-      const data = await res.json();
+      let data;
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        data = { error: await res.text() };
+      }
       if (res.ok) {
         alert('Cache purged successfully!');
         setPurgeUrls('');
       } else {
-        alert('Purge failed: ' + data.error);
+        alert('Purge failed: ' + (data.error || 'Unknown error'));
       }
     } catch (err: any) {
       alert('Error: ' + err.message);
@@ -988,6 +1000,32 @@ export default function AdminPage() {
               <p className="text-sm text-gray-400 mb-3">
                 After updating nominees or categories, enter the exact URLs that need purging (one per line) and click Purge.
               </p>
+
+              {/* Category Dropdown */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                <select
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const url = `${WORKER_URL.replace(/\/$/, '')}/nominees?select=*&category=eq.${encodeURIComponent(e.target.value)}&order=created_at.asc`;
+                    setPurgeUrls(prev => prev + (prev ? '\n' : '') + url);
+                    e.target.value = ''; // reset select
+                  }}
+                  className="bg-slate-700 text-white px-3 py-2 rounded border border-white/10 text-sm flex-1"
+                  defaultValue=""
+                >
+                  <option value="" disabled>Select a category to add its nominee list URL</option>
+                  {categoryList.map(cat => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setPurgeUrls('')}
+                  className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-sm"
+                >
+                  Clear
+                </button>
+              </div>
+
               <textarea
                 value={purgeUrls}
                 onChange={(e) => setPurgeUrls(e.target.value)}
@@ -1505,4 +1543,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-         }
+    }
