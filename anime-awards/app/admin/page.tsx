@@ -643,7 +643,7 @@ export default function AdminPage() {
   // ─── PURGE FUNCTION (MANUAL) with better error display ──────
   const purgeCache = async () => {
     if (!purgeUrls.trim()) {
-      alert('Please enter URLs to purge (one per line)');
+      alert('Enter URLs to purge (one per line)');
       return;
     }
     const urls = purgeUrls.split('\n').map(u => u.trim()).filter(u => u);
@@ -1548,3 +1548,4 @@ export default function AdminPage() {
     </div>
   )
           }
+
