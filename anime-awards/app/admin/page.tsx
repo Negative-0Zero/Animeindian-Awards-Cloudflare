@@ -99,13 +99,6 @@ export default function AdminPage() {
   // ----- Purge Debounce -----
   let purgeTimeout: NodeJS.Timeout;
 
-  // ----- Purge State -----
-  const [purgeUrls, setPurgeUrls] = useState('');
-  const [purging, setPurging] = useState(false);
-
-  // ----- Rebuild State -----
-  const [rebuilding, setRebuilding] = useState(false);
-
   // Available icons for nominee buttons
   const buttonIconOptions = [
     'ExternalLink', 'Music2', 'Play', 'Film', 'Radio', 'Headphones', 'Podcast'
@@ -500,6 +493,29 @@ export default function AdminPage() {
     }
   }
 
+  // ─── CLOUDFLARE REBUILD HOOK ────────────────────────────────
+  const triggerRebuild = async () => {
+    try {
+      const res = await fetch('/api/rebuild', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        console.log('Rebuild triggered successfully');
+      } else {
+        console.error('Rebuild trigger failed:', data.error);
+      }
+    } catch (error) {
+      console.error('Error triggering rebuild:', error);
+    }
+  };
+
+  const debouncedRebuild = () => {
+    clearTimeout(rebuildTimeout);
+    rebuildTimeout = setTimeout(() => triggerRebuild(), 5000);
+  };
+
   // ─── CATEGORY HANDLERS (with slug fallback) ─────────────────
   async function addCategory(e: React.FormEvent) {
     e.preventDefault()
@@ -514,6 +530,7 @@ export default function AdminPage() {
       setCategoryForm({ name: '', slug: '', icon_name: 'Trophy', color: 'group-hover:border-yellow-500/50', gradient: 'from-yellow-600/20', description: '' })
       fetchCategories()
       debouncedPurge('category');
+      debouncedRebuild()
     }
   }
 
@@ -536,6 +553,7 @@ export default function AdminPage() {
     if (error) {
       alert('Error: ' + error.message)
     } else {
+      await debouncedRebuild();
       debouncedPurge('category');
       alert('Success: Category updated!');
       setEditingCategoryId(null);
@@ -553,6 +571,7 @@ export default function AdminPage() {
       fetchCategories()
       fetchNominees()
       debouncedPurge('all');
+      debouncedRebuild()
     }
   }
 
@@ -596,6 +615,7 @@ export default function AdminPage() {
     } else {
       await fetchCategories()
       debouncedPurge('category');
+      debouncedRebuild()
     }
     setReordering(false)
   }
@@ -639,71 +659,6 @@ export default function AdminPage() {
   const collapseAll = () => {
     setExpandedCategories(new Set())
   }
-
-  // ─── PURGE FUNCTION (MANUAL) with better error display ──────
-  const purgeCache = async () => {
-    if (!purgeUrls.trim()) {
-      alert('Enter URLs to purge (one per line)');
-      return;
-    }
-    const urls = purgeUrls.split('\n').map(u => u.trim()).filter(u => u);
-    setPurging(true);
-    try {
-      const res = await fetch('/api/purge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls }),
-      });
-      
-      const responseText = await res.text();
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch {
-        data = { error: responseText || 'No response body' };
-      }
-
-      if (res.ok) {
-        alert('Cache purged successfully!');
-        setPurgeUrls('');
-      } else {
-        alert(`Purge failed (${res.status}): ${data.error || 'Unknown error'}`);
-      }
-    } catch (err: any) {
-      alert('Error: ' + err.message);
-    } finally {
-      setPurging(false);
-    }
-  };
-
-  // ─── REBUILD FUNCTION with better error display ─────────────
-  const triggerRebuild = async () => {
-    setRebuilding(true);
-    try {
-      const res = await fetch('/api/rebuild', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      
-      const responseText = await res.text();
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch {
-        data = { error: responseText || 'No response body' };
-      }
-
-      if (res.ok) {
-        alert('Rebuild triggered successfully! The site will update in a few minutes.');
-      } else {
-        alert(`Rebuild failed (${res.status}): ${data.error || 'Unknown error'}`);
-      }
-    } catch (err: any) {
-      alert('Error: ' + err.message);
-    } finally {
-      setRebuilding(false);
-    }
-  };
 
   // ─── RENDER ────────────────────────────────────────────────
   if (loading) {
@@ -995,73 +950,6 @@ export default function AdminPage() {
             ) : (
               <p className="text-gray-400">No dashboard data available.</p>
             )}
-
-            {/* Manual Cache Purge */}
-            <div className="mt-8 bg-slate-800/50 rounded-lg p-4 border border-white/5">
-              <h3 className="font-bold mb-2 flex items-center gap-1">
-                <RefreshCw size={16} /> Manual Cache Purge
-              </h3>
-              <p className="text-sm text-gray-400 mb-3">
-                After updating nominees or categories, enter the exact URLs that need purging (one per line) and click Purge.
-              </p>
-
-              {/* Category Dropdown */}
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <select
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    const url = `${WORKER_URL.replace(/\/$/, '')}/nominees?select=*&category=eq.${encodeURIComponent(e.target.value)}&order=created_at.asc`;
-                    setPurgeUrls(prev => prev + (prev ? '\n' : '') + url);
-                    e.target.value = ''; // reset select
-                  }}
-                  className="bg-slate-700 text-white px-3 py-2 rounded border border-white/10 text-sm flex-1 min-w-0 max-w-full"
-                  defaultValue=""
-                >
-                  <option value="" disabled>Select a category to add its nominee list URL</option>
-                  {categoryList.map(cat => (
-                    <option key={cat.id} value={cat.name}>{cat.name}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => setPurgeUrls('')}
-                  className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-sm whitespace-nowrap"
-                >
-                  Clear
-                </button>
-              </div>
-
-              <textarea
-                value={purgeUrls}
-                onChange={(e) => setPurgeUrls(e.target.value)}
-                placeholder="https://your-worker.workers.dev/nominees?select=*&category=eq.Anime%20of%20the%20Season&#10;https://your-worker.workers.dev/categories?select=*"
-                rows={3}
-                className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white text-sm mb-3"
-              />
-              <button
-                onClick={purgeCache}
-                disabled={purging}
-                className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-full text-sm transition flex items-center gap-1"
-              >
-                {purging ? 'Purging...' : 'Purge Now'}
-              </button>
-            </div>
-
-            {/* Manual Rebuild Button */}
-            <div className="mt-4 bg-slate-800/50 rounded-lg p-4 border border-white/5">
-              <h3 className="font-bold mb-2 flex items-center gap-1">
-                <RefreshCw size={16} /> Rebuild Site
-              </h3>
-              <p className="text-sm text-gray-400 mb-3">
-                Trigger a full Cloudflare Pages rebuild. This will deploy the latest changes from your repository.
-              </p>
-              <button
-                onClick={triggerRebuild}
-                disabled={rebuilding}
-                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-full text-sm transition flex items-center gap-1"
-              >
-                {rebuilding ? 'Rebuilding...' : 'Rebuild Now'}
-              </button>
-            </div>
           </div>
         )}
 
@@ -1547,5 +1435,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-          }
-
+        }
