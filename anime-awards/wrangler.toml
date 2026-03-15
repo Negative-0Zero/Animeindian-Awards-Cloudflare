@@ -1,6 +1,0 @@
-name = "anime-awards-worker"
-compatibility_date = "2024-01-01"
-main = "./.open-next/worker.js"
-
-[vars]
-WORKER_URL = "https://animeawards-api-cache.negativezero338.workers.dev"
