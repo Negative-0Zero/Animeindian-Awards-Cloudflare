@@ -18,10 +18,7 @@ import {
   Tag, ExternalLink, Music2, Play, Headphones, Podcast,
 } from "lucide-react"
 
-// Your Cloudflare Worker URL – replace with your actual worker domain
-const WORKER_URL = 'https://animeawards-api-cache.negativezero338.workers.dev/';
-
-// Map for button icons
+// Map for button icons (used in nominees tab)
 const buttonIconMap: Record<string, React.ElementType> = {
   ExternalLink,
   Music2,
@@ -96,8 +93,8 @@ export default function AdminPage() {
   const [contentMessage, setContentMessage] = useState('')
   const [showResults, setShowResults] = useState('false')
 
-  // ----- Purge Debounce -----
-  let purgeTimeout: NodeJS.Timeout;
+  // ----- Rebuild Debounce -----
+  let rebuildTimeout: NodeJS.Timeout;
 
   // Available icons for nominee buttons
   const buttonIconOptions = [
@@ -111,65 +108,6 @@ export default function AdminPage() {
     'Music', 'Radio', 'Gamepad', 'Brain', 'Cloud', 'Sun', 'Moon',
     'Smile', 'ThumbsUp', 'Flag', 'Gift', 'Globe', 'Leaf', 'Diamond'
   ]
-
-  // ─── HELPER: PURGE SPECIFIC URLS ─────────────────────────────
-  const purgeUrlsList = async (urls: string[]) => {
-    if (urls.length === 0) return;
-    try {
-      const res = await fetch('/api/purge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls }),
-      });
-      const responseText = await res.text();
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch {
-        data = { error: responseText || 'No response body' };
-      }
-      if (res.ok) {
-        console.log('Purged URLs:', urls);
-      } else {
-        console.error('Purge failed:', data.error);
-      }
-    } catch (err) {
-      console.error('Error purging URLs:', err);
-    }
-  };
-
-  // ─── DEBOUNCED PURGE (now with all category nominee lists) ───
-  const debouncedPurge = (type: 'category' | 'nominee' | 'all', specificCategory?: string) => {
-    clearTimeout(purgeTimeout);
-    purgeTimeout = setTimeout(() => {
-      const base = WORKER_URL.replace(/\/$/, '');
-      const urls = new Set<string>();
-
-      // Always purge category lists (used on homepage and navigation)
-      urls.add(`${base}/categories?select=*&order=display_order.asc`);
-      urls.add(`${base}/categories?select=slug,name,display_order&order=display_order.asc`);
-
-      // If a specific category is involved, purge its nominee list
-      if (specificCategory) {
-        urls.add(`${base}/nominees?select=*&category=eq.${encodeURIComponent(specificCategory)}&order=created_at.asc`);
-      }
-
-      // If type is 'nominee' or 'all', also purge the general nominee list (used by homepage)
-      if (type === 'nominee' || type === 'all') {
-        urls.add(`${base}/nominees?select=*&order=created_at.asc`);
-      }
-
-      // If type is 'category' or 'all', purge nominee lists for ALL categories
-      // This ensures any category page cache is cleared after any change.
-      if (type === 'category' || type === 'all') {
-        categoryListRef.current.forEach(cat => {
-          urls.add(`${base}/nominees?select=*&category=eq.${encodeURIComponent(cat.name)}&order=created_at.asc`);
-        });
-      }
-
-      purgeUrlsList(Array.from(urls));
-    }, 2000);
-  };
 
   // ─── AUTH CHECK + REACTIVE LISTENER ──────────────────────────
   async function checkUser() {
@@ -282,7 +220,6 @@ export default function AdminPage() {
       setContentMessage('Error: ' + error.message)
     } else {
       setContentMessage('Success: Rules page updated!')
-      // No cache purge needed for content changes
     }
     setSavingContent(false)
   }
@@ -374,7 +311,7 @@ export default function AdminPage() {
       } else {
         alert(`Success: Deleted ${selectedNominees.size} nominee(s).`)
         fetchNominees()
-        debouncedPurge('nominee'); // Purge cache
+        debouncedRebuild() // Trigger rebuild after changes
       }
       setBulkProcessing(false)
     } else if (bulkAction === 'move') {
@@ -390,7 +327,7 @@ export default function AdminPage() {
       } else {
         alert(`Success: Moved ${selectedNominees.size} nominee(s) to "${targetCategory}".`)
         fetchNominees()
-        debouncedPurge('nominee'); // Purge cache (will now also purge all category nominee lists)
+        debouncedRebuild()
         setTargetCategory('')
       }
       setBulkProcessing(false)
@@ -421,7 +358,7 @@ export default function AdminPage() {
       alert('Success: Nominee added!')
       resetNomineeForm()
       fetchNominees()
-      debouncedPurge('nominee', nomineeForm.category);
+      debouncedRebuild()
     }
   }
 
@@ -462,7 +399,7 @@ export default function AdminPage() {
       alert('Success: Nominee updated!')
       resetNomineeForm()
       fetchNominees()
-      debouncedPurge('nominee', nomineeForm.category);
+      debouncedRebuild()
     }
   }
 
@@ -485,26 +422,20 @@ export default function AdminPage() {
     const { error } = await supabase.from('nominees').delete().eq('id', id)
     if (!error) {
       fetchNominees()
-      if (nominee) {
-        debouncedPurge('nominee', nominee.category);
-      } else {
-        debouncedPurge('nominee');
-      }
+      debouncedRebuild()
     }
   }
 
-  // ─── CLOUDFLARE REBUILD HOOK ────────────────────────────────
+  // ─── CLOUDFLARE REBUILD HOOK (Direct webhook call) ──────────
   const triggerRebuild = async () => {
     try {
-      const res = await fetch('/api/rebuild', {
+      const response = await fetch('https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/61bea573-fe05-49ed-89c5-512fc8fb7a60', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
       });
-      const data = await res.json();
-      if (res.ok) {
+      if (response.ok) {
         console.log('Rebuild triggered successfully');
       } else {
-        console.error('Rebuild trigger failed:', data.error);
+        console.error('Rebuild trigger failed', await response.text());
       }
     } catch (error) {
       console.error('Error triggering rebuild:', error);
@@ -529,7 +460,6 @@ export default function AdminPage() {
       alert('Success: Category added!')
       setCategoryForm({ name: '', slug: '', icon_name: 'Trophy', color: 'group-hover:border-yellow-500/50', gradient: 'from-yellow-600/20', description: '' })
       fetchCategories()
-      debouncedPurge('category');
       debouncedRebuild()
     }
   }
@@ -554,7 +484,6 @@ export default function AdminPage() {
       alert('Error: ' + error.message)
     } else {
       await debouncedRebuild();
-      debouncedPurge('category');
       alert('Success: Category updated!');
       setEditingCategoryId(null);
       setCategoryForm({ name: '', slug: '', icon_name: 'Trophy', color: 'group-hover:border-yellow-500/50', gradient: 'from-yellow-600/20', description: '' });
@@ -570,7 +499,6 @@ export default function AdminPage() {
     if (!error) {
       fetchCategories()
       fetchNominees()
-      debouncedPurge('all');
       debouncedRebuild()
     }
   }
@@ -614,7 +542,6 @@ export default function AdminPage() {
       alert('Error reordering: ' + (error1?.message || error2?.message))
     } else {
       await fetchCategories()
-      debouncedPurge('category');
       debouncedRebuild()
     }
     setReordering(false)
@@ -1435,4 +1362,4 @@ export default function AdminPage() {
       </div>
     </div>
   )
-        }
+    }
