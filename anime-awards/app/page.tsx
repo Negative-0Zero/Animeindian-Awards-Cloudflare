@@ -54,10 +54,22 @@ export default function Home() {
     setError(null)
     
     try {
+      console.log('Fetching categories...')
       const categoriesData = await fetchFromAPI('/categories?select=*&order=display_order.asc')
-      setCategories(categoriesData || [])
+      console.log('Categories response:', categoriesData)
+      
+      if (!Array.isArray(categoriesData)) {
+        throw new Error('Categories data is not an array')
+      }
+      setCategories(categoriesData)
 
+      console.log('Fetching nominees...')
       const nomineesData = await fetchFromAPI('/nominees?select=*&order=created_at.asc')
+      console.log('Nominees response:', nomineesData)
+
+      if (!Array.isArray(nomineesData)) {
+        throw new Error('Nominees data is not an array')
+      }
 
       if (nomineesData) {
         const grouped = nomineesData.reduce((acc: any, nominee: any) => {
@@ -69,7 +81,12 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Error fetching data:', err)
-      setError('Failed to load categories. Please refresh the page.')
+      // Provide more specific error message
+      if (err instanceof Error) {
+        setError(`Failed to load data: ${err.message}. Please refresh the page.`)
+      } else {
+        setError('Failed to load categories. Please refresh the page.')
+      }
     } finally {
       setLoading(false)
     }
@@ -167,7 +184,17 @@ export default function Home() {
               <FingerLoader />
             </div>
           )}
-          {error && <p className="text-center text-red-400">{error}</p>}
+          {error && (
+            <div className="text-center">
+              <p className="text-red-400 mb-4">{error}</p>
+              <button
+                onClick={() => fetchData()}
+                className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-full transition"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
           {!loading && !error && categories.length === 0 && (
             <p className="text-center text-gray-400">No categories found. Please add some in the admin panel.</p>
           )}
@@ -208,4 +235,4 @@ export default function Home() {
       <Footer />
     </main>
   )
-  }
+            }
