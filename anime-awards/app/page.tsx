@@ -40,13 +40,21 @@ export default function Home() {
   const [nomineesByCategory, setNomineesByCategory] = useState<Record<string, any[]>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
     const initializeData = async () => {
-      await supabase.auth.getSession()
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsLoggedIn(!!user)
       await fetchData()
     }
     initializeData()
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session?.user)
+    })
+
+    return () => listener?.subscription.unsubscribe()
   }, [])
 
   async function fetchData() {
@@ -81,7 +89,6 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Error fetching data:', err)
-      // Provide more specific error message
       if (err instanceof Error) {
         setError(`Failed to load data: ${err.message}. Please refresh the page.`)
       } else {
@@ -152,24 +159,26 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Login Section */}
-      <section id="login-section" className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-gradient-to-br from-slate-900/90 to-slate-950/90 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl">
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            <div className="text-center md:text-left md:w-1/2">
-              <h2 className="text-3xl font-bold mb-3 flex items-center gap-2 justify-center md:justify-start">
-                <ThumbsUpIcon className="text-yellow-400" /> Ready to Vote?
-              </h2>
-              <p className="text-gray-300">
-                <span className="font-semibold text-white">One person, one vote.</span> We use secure login to ensure fairness – no duplicate votes.
-              </p>
-            </div>
-            <div className="md:w-1/2 w-full">
-              <Login compact={false} showReassurance={true} />
+      {/* Login Section - only shown when not logged in */}
+      {!isLoggedIn && (
+        <section id="login-section" className="max-w-4xl mx-auto px-4 py-12">
+          <div className="bg-gradient-to-br from-slate-900/90 to-slate-950/90 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="text-center md:text-left md:w-1/2">
+                <h2 className="text-3xl font-bold mb-3 flex items-center gap-2 justify-center md:justify-start">
+                  <ThumbsUpIcon className="text-yellow-400" /> Ready to Vote?
+                </h2>
+                <p className="text-gray-300">
+                  <span className="font-semibold text-white">One person, one vote.</span> We use secure login to ensure fairness – no duplicate votes.
+                </p>
+              </div>
+              <div className="md:w-1/2 w-full">
+                <Login compact={false} showReassurance={true} />
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Categories Section */}
       <section id="categories-section" className="max-w-7xl mx-auto px-4 py-12">
@@ -235,4 +244,4 @@ export default function Home() {
       <Footer />
     </main>
   )
-            }
+    }
