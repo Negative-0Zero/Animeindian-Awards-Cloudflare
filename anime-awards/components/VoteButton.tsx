@@ -52,7 +52,7 @@ export default function VoteButton({
                 .select('id')
                 .eq('user_id', currentUser.id)
                 .eq('category', category)
-                .eq('is_jury', false)  // only check public votes
+                .eq('is_jury', false)
                 .maybeSingle()
             setVoted(!!data)
         }
@@ -94,48 +94,43 @@ export default function VoteButton({
             return
         }
 
-        if (voted) {
-            alert(' You already voted in this category!')
-            return
-        }
-
         setLoading(true)
 
-        const { error: voteError } = await supabase
-            .from('votes')
-            .insert([{
-                user_id: user.id,
-                category,
-                nominee_id: nomineeId,
-                is_jury: false
-            }])
+        // Call the upsert RPC
+        const { data, error } = await supabase.rpc('upsert_vote', {
+            p_category: category,
+            p_nominee_id: nomineeId,
+            p_is_jury: false
+        })
 
-        if (voteError) {
-            if (voteError.code === '23505') {
-                alert(' You already voted in this category!')
-                setVoted(true)
-            } else {
-                alert('Error: ' + voteError.message)
-            }
+        if (error) {
+            alert('Error: ' + error.message)
             setLoading(false)
             return
         }
 
-        // No need to call RPC – the database trigger will update votes_public automatically
+        if (data && data.success) {
+            if (!data.changed) {
+                alert(' You already voted for this nominee.')
+            } else {
+                alert(' Your vote has been updated!')
+            }
+            setVoted(true) // Always mark as voted (or keep true)
+            onVoteSuccess?.()
+        } else {
+            alert('Something went wrong. Please try again.')
+        }
 
         setLoading(false)
-        setVoted(true)
-        onVoteSuccess?.()
-        alert(' Vote counted! ')
     }
 
     return (
         <button
             onClick={handleVote}
-            disabled={voted || loading}
+            disabled={loading}
             className={`bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-bold px-4 py-2 rounded-full text-sm transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
         >
-            {loading ? 'Submitting...' : voted ? '✓ Voted!' : (children || '🗳️ Vote')}
+            {loading ? 'Submitting...' : (voted ? 'Change Vote' : (children || '🗳️ Vote'))}
         </button>
     )
 }
