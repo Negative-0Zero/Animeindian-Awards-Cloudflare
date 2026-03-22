@@ -3,6 +3,7 @@
 import { supabase } from '@/utils/supabase/client'
 import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
+import { ThumbsUp, RefreshCw } from 'lucide-react'
 
 interface VoteButtonProps {
     nomineeId: string
@@ -42,7 +43,6 @@ export default function VoteButton({
         }
     }, [user, pendingVote])
 
-    // Check if user already voted in this category (public vote)
     useEffect(() => {
         if (!user || isHero) return
         const currentUser = user
@@ -69,7 +69,7 @@ export default function VoteButton({
                     loginSection.classList.add('ring-4', 'ring-yellow-400', 'rounded-lg')
                     setTimeout(() => loginSection.classList.remove('ring-4', 'ring-yellow-400'), 2000)
                 }
-                alert(' Please log in first – you\'ll be taken to the categories after login.')
+                alert('Please log in first – you will be taken to the categories after login.')
                 return
             } else {
                 const categoriesSection = document.getElementById('categories-section')
@@ -90,13 +90,12 @@ export default function VoteButton({
                 loginSection.classList.add('ring-4', 'ring-yellow-400', 'rounded-lg')
                 setTimeout(() => loginSection.classList.remove('ring-4', 'ring-yellow-400'), 2000)
             }
-            alert(' Please log in first – you\'ll be taken back to vote after login.')
+            alert('Please log in first – you will be taken back to vote after login.')
             return
         }
 
         setLoading(true)
 
-        // Call the upsert RPC
         const { data, error } = await supabase.rpc('upsert_vote', {
             p_category: category,
             p_nominee_id: nomineeId,
@@ -111,11 +110,11 @@ export default function VoteButton({
 
         if (data && data.success) {
             if (!data.changed) {
-                alert(' You already voted for this nominee.')
+                alert('You already voted for this nominee.')
             } else {
-                alert(' Your vote has been updated!')
+                alert('Your vote has been updated.')
             }
-            setVoted(true) // Always mark as voted (or keep true)
+            setVoted(true)
             onVoteSuccess?.()
         } else {
             alert('Something went wrong. Please try again.')
@@ -128,9 +127,24 @@ export default function VoteButton({
         <button
             onClick={handleVote}
             disabled={loading}
-            className={`bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-bold px-4 py-2 rounded-full text-sm transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+            className={`bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-bold px-4 py-2 rounded-full text-sm transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 ${className}`}
         >
-            {loading ? 'Submitting...' : (voted ? 'Change Vote' : (children || '🗳️ Vote'))}
+            {loading ? (
+                <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    Submitting...
+                </>
+            ) : voted ? (
+                <>
+                    <RefreshCw size={16} />
+                    Change Vote
+                </>
+            ) : (
+                <>
+                    <ThumbsUp size={16} />
+                    {children || 'Vote'}
+                </>
+            )}
         </button>
     )
-}
+                                                                        }
