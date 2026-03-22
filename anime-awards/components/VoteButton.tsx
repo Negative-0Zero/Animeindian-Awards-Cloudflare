@@ -3,7 +3,7 @@
 import { supabase } from '@/utils/supabase/client'
 import { useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
-import { ThumbsUp, RefreshCw } from 'lucide-react'
+import { ThumbsUp, RefreshCw, Check } from 'lucide-react'
 
 interface VoteButtonProps {
     nomineeId: string
@@ -12,6 +12,7 @@ interface VoteButtonProps {
     children?: React.ReactNode
     onVoteSuccess?: () => void
     isHero?: boolean
+    isSelected?: boolean
 }
 
 export default function VoteButton({
@@ -20,7 +21,8 @@ export default function VoteButton({
     className = "",
     children,
     onVoteSuccess,
-    isHero = false
+    isHero = false,
+    isSelected = false
 }: VoteButtonProps) {
     const [user, setUser] = useState<User | null>(null)
     const [voted, setVoted] = useState(false)
@@ -134,6 +136,11 @@ export default function VoteButton({
                     <RefreshCw size={16} className="animate-spin" />
                     Submitting...
                 </>
+            ) : isSelected ? (
+                <>
+                    <Check size={16} />
+                    Selected
+                </>
             ) : voted ? (
                 <>
                     <RefreshCw size={16} />
@@ -147,4 +154,4 @@ export default function VoteButton({
             )}
         </button>
     )
-                                                                        }
+}
