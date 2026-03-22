@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/utils/supabase/client'
 import FingerLoader from '@/components/FingerLoader'
-import { Download, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Download, ArrowLeft, CheckCircle, Trophy } from 'lucide-react'
 import Link from 'next/link'
 
 interface VoteWithNominee {
@@ -92,7 +92,7 @@ export default function MyVotesPage() {
           max-width: 100% !important;
           page-break-inside: avoid;
         }
-        .bg-slate-950, .bg-slate-900, .bg-slate-800 {
+        .bg-slate-950, .bg-slate-900, .bg-slate-800, .bg-slate-700 {
           background: white !important;
           color: black !important;
         }
@@ -106,8 +106,11 @@ export default function MyVotesPage() {
           text-decoration: none !important;
           color: black !important;
         }
-        .shadow-2xl, .shadow-xl {
+        .shadow-2xl, .shadow-xl, .shadow-lg {
           box-shadow: none !important;
+        }
+        .border-white, .border-white\\/10 {
+          border-color: #ccc !important;
         }
       }
     `
@@ -127,7 +130,9 @@ export default function MyVotesPage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4">
-        <h1 className="text-2xl font-bold mb-4">My Votes</h1>
+        <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-orange-400 to-pink-500 bg-clip-text text-transparent">
+          My Votes
+        </h1>
         <p className="text-gray-400 mb-6">Please log in to see your votes.</p>
         <Link
           href="/"
@@ -157,8 +162,9 @@ export default function MyVotesPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8 no-print">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-12 no-print">
           <Link
             href="/"
             className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
@@ -168,54 +174,83 @@ export default function MyVotesPage() {
           </Link>
           <button
             onClick={downloadAsPDF}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-full text-sm font-medium transition"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-full text-sm font-medium transition shadow-lg"
           >
             <Download size={16} />
             Download as PDF
           </button>
         </div>
 
-        <h1 className="text-3xl font-bold mb-2">My Votes</h1>
-        <p className="text-gray-400 mb-8">You have voted in {categoryNames.length} categories.</p>
+        {/* Title */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-black mb-2 bg-gradient-to-r from-orange-400 via-pink-500 to-purple-600 bg-clip-text text-transparent">
+            My Votes
+          </h1>
+          <p className="text-gray-400">You have voted in {categoryNames.length} categories</p>
+        </div>
 
         {categoryNames.length === 0 ? (
-          <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-8 text-center">
-            <p className="text-gray-400">You haven't voted in any categories yet.</p>
+          <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-12 text-center backdrop-blur-sm">
+            <p className="text-gray-400 mb-6 text-lg">You haven't voted in any categories yet.</p>
             <Link
               href="/"
-              className="mt-4 inline-block bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-full"
+              className="inline-block bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-bold px-8 py-4 rounded-full transition-all shadow-lg"
             >
               Start Voting
             </Link>
           </div>
         ) : (
-          <div className="space-y-8">
-            {categoryNames.map((category) => (
-              <div key={category} className="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
-                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-                  <CheckCircle size={20} className="text-green-400" />
-                  {category}
-                </h2>
-                {votesByCategory[category].map((vote) => (
-                  <div key={vote.nominee_id} className="flex items-start gap-4 border-t border-white/10 pt-4 first:border-t-0 first:pt-0">
-                    {vote.image_url && (
-                      <img
-                        src={vote.image_url}
-                        alt={vote.title}
-                        className="w-16 h-16 object-cover rounded-lg"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{vote.title}</h3>
-                      {vote.anime_name && (
-                        <p className="text-gray-400 text-sm">{vote.anime_name}</p>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">Total votes: {vote.votes_public}</p>
-                    </div>
+          <div className="space-y-16">
+            {categoryNames.map((category) => {
+              const votes = votesByCategory[category]
+              return (
+                <section key={category}>
+                  <div className="flex items-center gap-3 mb-6">
+                    <Trophy className="text-yellow-400" size={28} />
+                    <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                      {category}
+                    </h2>
                   </div>
-                ))}
-              </div>
-            ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {votes.map((vote) => (
+                      <div
+                        key={vote.nominee_id}
+                        className="group bg-slate-900/50 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden hover:border-yellow-500/50 hover:shadow-2xl transition-all duration-300"
+                      >
+                        <div className="aspect-video overflow-hidden bg-slate-800">
+                          {vote.image_url ? (
+                            <img
+                              src={vote.image_url}
+                              alt={vote.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500">
+                              No image
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-4">
+                          <h3 className="font-bold text-lg mb-1 line-clamp-2">{vote.title}</h3>
+                          {vote.anime_name && (
+                            <p className="text-gray-400 text-sm mb-2 line-clamp-1">{vote.anime_name}</p>
+                          )}
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500 flex items-center gap-1">
+                              <CheckCircle size={12} className="text-green-400" />
+                              Your pick
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {vote.votes_public} votes
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
           </div>
         )}
       </div>
