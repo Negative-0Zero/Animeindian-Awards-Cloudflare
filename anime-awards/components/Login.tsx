@@ -6,7 +6,7 @@ import { FaDiscord, FaGoogle } from 'react-icons/fa'
 import { HiOutlineShieldCheck } from 'react-icons/hi'
 import { User } from '@supabase/supabase-js'
 import Link from 'next/link'
-import { Vote } from 'lucide-react'
+import { Vote, LogOut, ChevronDown, User as UserIcon } from 'lucide-react'
 
 interface LoginProps {
   compact?: boolean
@@ -20,6 +20,7 @@ export default function Login({
   hideWhenLoggedOut = false
 }: LoginProps) {
   const [user, setUser] = useState<User | null>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -31,6 +32,16 @@ export default function Login({
     })
 
     return () => listener?.subscription.unsubscribe()
+  }, [])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.user-menu')) setDropdownOpen(false)
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
   }, [])
 
   async function signInDiscord() {
@@ -53,35 +64,48 @@ export default function Login({
 
   async function signOut() {
     await supabase.auth.signOut()
+    setDropdownOpen(false)
   }
 
   if (hideWhenLoggedOut && !user) return null
 
   if (user) {
-    // Logged in view – same for both compact and normal
     return (
-      <div className="flex items-center gap-3 bg-black/20 backdrop-blur-sm px-3 py-2 rounded-full">
-        <img 
-          src={user.user_metadata.avatar_url} 
-          className="w-8 h-8 rounded-full border-2 border-purple-400" 
-          alt="avatar"
-        />
-        <span className="text-sm text-white hidden sm:inline">
-          {user.user_metadata.full_name || user.user_metadata.name}
-        </span>
-        <Link
-          href="/my-votes"
-          className="text-sm text-gray-300 hover:text-white flex items-center gap-1"
+      <div className="relative user-menu">
+        <button
+          onClick={() => setDropdownOpen(!dropdownOpen)}
+          className="flex items-center gap-2 bg-black/20 backdrop-blur-sm px-3 py-2 rounded-full hover:bg-black/30 transition-colors"
         >
-          <Vote size={14} />
-          My Votes
-        </Link>
-        <button 
-          onClick={signOut} 
-          className="text-xs text-gray-300 hover:text-white px-2 py-1 rounded-full bg-black/30"
-        >
-          Exit
+          <img 
+            src={user.user_metadata.avatar_url} 
+            className="w-8 h-8 rounded-full border-2 border-purple-400" 
+            alt="avatar"
+          />
+          <span className="text-sm text-white hidden sm:inline">
+            {user.user_metadata.full_name || user.user_metadata.name}
+          </span>
+          <ChevronDown size={16} className={`text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
         </button>
+
+        {dropdownOpen && (
+          <div className="absolute right-0 mt-2 w-48 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+            <Link
+              href="/my-votes"
+              onClick={() => setDropdownOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-sm text-gray-300 hover:bg-white/10 transition-colors"
+            >
+              <Vote size={16} />
+              My Votes
+            </Link>
+            <button
+              onClick={signOut}
+              className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-300 hover:bg-white/10 transition-colors text-left"
+            >
+              <LogOut size={16} />
+              Exit
+            </button>
+          </div>
+        )}
       </div>
     )
   }
@@ -120,4 +144,4 @@ export default function Login({
       )}
     </div>
   )
-}
+        }
