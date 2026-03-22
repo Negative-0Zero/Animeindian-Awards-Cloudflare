@@ -235,13 +235,10 @@ export default function MyVotesPage() {
                           {vote.anime_name && (
                             <p className="text-gray-400 text-sm mb-2 line-clamp-1">{vote.anime_name}</p>
                           )}
-                          <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center mt-2">
                             <span className="text-xs text-gray-500 flex items-center gap-1">
                               <CheckCircle size={12} className="text-green-400" />
                               Your pick
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {vote.votes_public} votes
                             </span>
                           </div>
                         </div>
@@ -256,4 +253,4 @@ export default function MyVotesPage() {
       </div>
     </main>
   )
-        }
+  }
