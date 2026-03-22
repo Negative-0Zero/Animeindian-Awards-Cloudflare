@@ -131,8 +131,6 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
     )
   }
 
-  const hasVoted = !!userVotes[category]
-
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
@@ -181,7 +179,9 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
               return (
                 <div
                   key={nominee.id}
-                  className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 hover:border-white/30 transition-all"
+                  className={`bg-slate-900/50 border rounded-2xl p-6 hover:border-white/30 transition-all ${
+                    isVoted ? 'border-yellow-500/70 ring-2 ring-yellow-500/50' : 'border-white/10'
+                  }`}
                 >
                   {nominee.image_url && (
                     <img
@@ -199,6 +199,7 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
                       nomineeId={nominee.id}
                       category={category}
                       onVoteSuccess={fetchCategoryAndNeighbors}
+                      isSelected={isVoted}
                       className="w-full"
                     />
                     
@@ -265,4 +266,4 @@ export default function CategoryClient({ slug: propSlug }: { slug?: string }) {
       </section>
     </main>
   )
-        }
+}
