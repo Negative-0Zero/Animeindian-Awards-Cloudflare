@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 import { FaDiscord, FaGoogle } from 'react-icons/fa'
 import { HiOutlineShieldCheck } from 'react-icons/hi'
 import { User } from '@supabase/supabase-js'
+import Link from 'next/link'
+import { Vote } from 'lucide-react'
 
 interface LoginProps {
   compact?: boolean
@@ -31,7 +33,6 @@ export default function Login({
     return () => listener?.subscription.unsubscribe()
   }, [])
 
-  // ✅ SIMPLE DISCORD OAUTH – email unavoidable, but your trigger will delete it
   async function signInDiscord() {
     await supabase.auth.signInWithOAuth({
       provider: 'discord',
@@ -39,14 +40,13 @@ export default function Login({
     })
   }
 
-  // ✅ SIMPLE GOOGLE OAUTH – NO EMAIL (because you removed email scope from Google Cloud)
   async function signInGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: window.location.origin,
-        scopes: 'openid profile', // email scope is NOT requested
-        queryParams: { prompt: 'consent' } // force new permissions
+        scopes: 'openid profile',
+        queryParams: { prompt: 'consent' }
       }
     })
   }
@@ -58,21 +58,27 @@ export default function Login({
   if (hideWhenLoggedOut && !user) return null
 
   if (user) {
+    // Logged in view – same for both compact and normal
     return (
-      <div className="flex items-center justify-between w-full bg-black/20 backdrop-blur-sm px-3 py-2 rounded-full">
-        <div className="flex items-center gap-2">
-          <img 
-            src={user.user_metadata.avatar_url} 
-            className="w-8 h-8 rounded-full border-2 border-purple-400" 
-            alt="avatar"
-          />
-          <span className="text-sm text-white hidden sm:inline">
-            {user.user_metadata.full_name || user.user_metadata.name}
-          </span>
-        </div>
+      <div className="flex items-center gap-3 bg-black/20 backdrop-blur-sm px-3 py-2 rounded-full">
+        <img 
+          src={user.user_metadata.avatar_url} 
+          className="w-8 h-8 rounded-full border-2 border-purple-400" 
+          alt="avatar"
+        />
+        <span className="text-sm text-white hidden sm:inline">
+          {user.user_metadata.full_name || user.user_metadata.name}
+        </span>
+        <Link
+          href="/my-votes"
+          className="text-sm text-gray-300 hover:text-white flex items-center gap-1"
+        >
+          <Vote size={14} />
+          My Votes
+        </Link>
         <button 
           onClick={signOut} 
-          className="text-xs text-gray-300 hover:text-white px-2 py-1 rounded-full bg-black/30 ml-2"
+          className="text-xs text-gray-300 hover:text-white px-2 py-1 rounded-full bg-black/30"
         >
           Exit
         </button>
@@ -80,6 +86,7 @@ export default function Login({
     )
   }
 
+  // Not logged in
   if (compact) {
     return (
       <div className="flex gap-1">
@@ -108,9 +115,9 @@ export default function Login({
       {showReassurance && (
         <div className="flex items-center gap-2 text-xs text-gray-300 bg-black/30 px-4 py-2 rounded-full backdrop-blur-sm">
           <HiOutlineShieldCheck className="text-green-400 text-base" />
-          <span> Privacy first. Your data is erased instantly after authentication.</span>
+          <span>Privacy first. Your data is erased instantly after authentication.</span>
         </div>
       )}
     </div>
   )
-          }
+}
